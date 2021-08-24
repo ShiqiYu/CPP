@@ -268,3 +268,12 @@ Create a class for matrices which elements are in float. The class should suppor
 `Matrix b(3,4);`
 `Matrix c = a + b;`
 `Matrix d = a * 2.0f;`
+
+## Chapter 13: Class Inheritance
+
+## Chapter 14: Class Templates and std Library
+
+## Chapter 15: Exceptions
+
+## Chapter 16: Friend Classes and Nested Classes
+
