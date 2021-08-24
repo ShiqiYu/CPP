@@ -197,3 +197,50 @@ Create two 1Mx1K float matrices matA and matB, compute matA + matB.
 * improve the speed using SIMD, will the speed be improved? Why?
 
 
+## Chapter 10: Basics of Classes
+
+### Class Definition
+
+* build-in types and user defined types
+* data componient and method/functions
+
+### Using a Class
+
+* Access control: public and private
+* Create an object and access members
+* const member functions
+* const member variables
+* static member variables
+
+### Constructors and Destructors
+
+* Constructors
+* Default Constructors
+* Destructors
+* Initialization
+
+### this pointer
+
+### Lab
+
+Create a simple class. Please try to test:
+
+* access a private member
+* modify a const data member
+* modify a data member in a const function
+* initializate a const data member
+
+## Chapter 11: Advances in Classes
+
+### operator overloading
+
+### friend Functions
+
+### << operator
+
+### Automatic Conversions and Type Casts for Classes
+
+### Lab
+
+overload + and << for your own defined class
+
