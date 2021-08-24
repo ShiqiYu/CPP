@@ -1,5 +1,7 @@
 # C/C++ Outline
 
+The syllabus for 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Science and Technology.
+
 ## Chapter 1: Get Started
 
 ### The first example
