@@ -112,7 +112,8 @@ Install VS code and run the first example
 
 ### Lab:
 
-* read from a binary, and print out in tex format
+* Read from a binary, and print out in tex format
+* How to debug using VS Code.
 
 ## Chapter 6: Memory and Pointer
 
