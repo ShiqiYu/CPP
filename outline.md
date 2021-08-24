@@ -61,7 +61,7 @@ Install VS code and run the first example
 * conversion between char and integer
 * test float number precision
 
-## Chapter 3
+## Chapter 3: Loops and Branching Statements
 
 ### if-else if- else
 
