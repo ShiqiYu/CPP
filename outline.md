@@ -239,9 +239,11 @@ Create a simple class. Please try to test:
 
 Constructor and assignment
 
-```Student s2=s1;
+```
+Student s2=s1;
 Student s3;
-s3=s1;```
+s3=s1;
+```
 
 ### friend Functions
 
