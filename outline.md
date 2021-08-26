@@ -10,13 +10,13 @@ A C++ example with C++20 standard
 
 ### What’s a programming language
 
-Binary instruction - ASM - advanced programming language - (Java) - script programming language - scratch 
+Binary instruction - ASM - advanced programming language - (Java) - script programming language - scratch
 
 ### History of C and C++
 
 Does we still need C and C++?
 
-### A complete sample 
+### A complete sample
 
 * two cpp files, a header file are compiled together
 * what’s a compiler
@@ -237,6 +237,12 @@ Create a simple class. Please try to test:
 
 ### operator overloading
 
+Constructor and assignment
+
+```Student s2=s1;
+Student s3;
+s3=s1;```
+
 ### friend Functions
 
 ### << operator
@@ -274,9 +280,33 @@ Create a class for matrices which elements are in float. The class should suppor
 
 ## Chapter 13: Class Inheritance
 
+### Deriving a Class
+
+* Constructor
+* Destructor
+
+### Static and Dynamic Binding
+
+### Vitural Functions
+
+### Access Control (protected)
+
+### Dynamic Memory Management
+
+### Lab
+
 ## Chapter 14: Class Templates and std Library
+
+### Defining a Class Template
+
+### Templates in OpenCV
+
+### Templates in std
+
+### Lab
+
+Create a matrix template class which can handle different data types.
 
 ## Chapter 15: Exceptions
 
 ## Chapter 16: Friend Classes and Nested Classes
-
