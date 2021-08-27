@@ -1,4 +1,4 @@
-# C/C++ Outline
+# Programming in C++ Efficiently
 
 The syllabus for 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Science and Technology.
 
