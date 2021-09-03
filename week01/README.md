@@ -7,7 +7,7 @@ Let us start from a very simple example. You can save the following source code 
 C and C++ are not fixed languages. They keep evolving in the past decades. It is impossible to convert all the details of all C and C++ standards here. Please remember that the features you use may be in different standards, and you can specify them by option `--std` to let the compiler to compile the source code in different standards.  
 
 ```C++
-//C++ example in C++11
+//hello.cpp
 #include <iostream>
 #include <vector>
 #include <string>
@@ -18,7 +18,7 @@ int main()
 {
     vector<string> msg {"Hello", "C++", "World", "!"};
     
-    for (const string& word : msg)
+    for (const string& word : msg) //C++11 standard
     {
         cout << word << " ";
     }
@@ -203,7 +203,4 @@ double len(double r)
 
 ## Simple Input and Output
 
-## Lab
 
-Compile with gcc
-Install VS code and run the first example
