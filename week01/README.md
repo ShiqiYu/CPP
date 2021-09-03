@@ -27,7 +27,7 @@ int main()
 ```
 
 To run the generated program `a.out`, you can simply to run `./a.out` in the command window. The output of the program will be
-```
+```bash
 $ ./a.out 
 Hello C++ World ! 
 ```
@@ -72,22 +72,138 @@ C and C++ are not easy languages. The program developed by beginners tends to cr
 
 Even we have many 'easy' languages, C and C++ are still important languages, and there is no good substitution for their tasks. Most fundamental software is developed by C or C++. Linux, Windows and most OS are written in C. The software by C or C++ can be a very long list, Apache web server,  Oracle, MySQL, Adobe Photoshop, Google Chrome, Microsoft Office, OpenCV, gcc compiler, ... If you care about efficiency, C or C++ may be your best choice, sometimes your only choice. C and C++ are must learn languages for the students in computer science.
 
-## A complete sample
+## Compile and Link
 
-* two cpp files, a header file are compiled together
-* what’s a compiler
-* what’s a linker
-* the difference between compiled languages with script languages 
-* how they work
-* the speed
+Now we have a longer example. In the example, function `main()` calls function `mul()`, and `mul()` can return the product argument `a` and argument `b` by multiplying them.
 
-## More on C/C++ programming
+```C++
+//mainmul.cpp
+#include <iostream>
 
-* proprecessor
-* function
-* header 
+using namespace std;
 
-## Lab: 
+int mul(int a, int b)
+{
+    return a * b;
+}
+int main()
+{
+    int a, b;
+    int result;
+
+    cout << "Pick two integers:";
+    cin >> a;
+    cin >> b;
+
+    result = mul(a, b);
+
+    cout << "The result is " << result << endl;
+    return 0;
+}
+```
+
+Since the file name of the source file is `mainmul.cpp`, we can compile it using `g++ mainmul.cpp -o mainmul` and generate an executable file `mainmul`. If the source code is long, we can put all source code into one file. But it is not convenient to manage the source file. To better manage the source code, we can put the source code into different files according to their functions. Such as we can put function `main()` into file `main.cpp`, and `mul()` into `mul.cpp`. Then they can be like the following.
+
+```C++
+//main.cpp
+#include <iostream>
+#include "mul.hpp"
+
+using namespace std;
+int main()
+{
+    int a, b;
+    int result;
+
+    cout << "Pick two integers:";
+    cin >> a;
+    cin >> b;
+
+    result = mul(a, b);
+
+    cout << "The result is " << result << endl;
+    return 0;
+}
+```
+
+```C++
+//mul.hpp
+#pragma once
+int mul(int a, int b);
+```
+
+```C++
+//mul.cpp
+#include "mul.hpp"
+
+int mul(int a, int b)
+{
+    return a * b;
+}
+```
+
+Then we can compile the two source files by `g++ -c main.cpp` and `g++ -c mul.cpp` specifically. The object files `main.o` and `mul.o` will be generated. Then we can link the two object files into an executable file by `g++ main.o mul.o -o mul`. Here the option `-c` is to tell the compiler `g++` to compile the source file only. To compile and link multiple files together, you can simply use `g++ main.cpp mul.cpp -o mul`. But if you have many files in your project, it may take very long time to compile all files. It is better to compile the changed files only. If you do not want to type the commands one by one, you can use a `Makefile` to save the rules for compilation and link and then a command `make` can help you do everything.
+
+You may notice that we have three files here. `*.c` and `*.cpp` files are source files. `*.h` and `*hpp` are header files. We normally to use a header file to store the declarations of functions. A function declaration introduces the function name and its type (arguments). If there is not a header file, the compiler will do not know what `mul` is when we compile `main.cpp`, and it will pop error message like the following. `mul` is an undeclared identifier, and the compiler does not know how to handle it.
+
+```bash
+$ g++ -c main.cpp
+main.cpp:14:14: error: use of undeclared identifier 'mul'
+    result = mul(a, b);
+             ^
+1 error generated.
+```
+
+`#include` macro is to insert the contents in `mul.hpp` into `main.cpp`. Then the source file after preprocessing will be like the following. Even the compile cannot find the body (definition) of function `mul()`, it will know its interface. How it takes arguments and what type will be returned. A linker will find the body of function `mul.o` and link the two object files together and generate an executable file.
+```C++
+#include <iostream>
+int mul(int a, int b); //#include "mul.hpp" is replaced by the contents in mul.hpp
+
+using namespace std;
+int main()
+{
+    int a, b;
+    int result;
+
+    cout << "Pick two integers:";
+    cin >> a;
+    cin >> b;
+
+    result = mul(a, b);
+
+    cout << "The result is " << result << endl;
+    return 0;
+}
+```
+
+## Preprocessor
+
+Compilation is briefly introduced in the previous part. There are several steps to the compilation before a compiler really compiles the source code. The previous step before the compilation is preprocessing.
+
+Preprocessing directives begin with a `#` character, and each directive occupies one line. The most commonly used preprocessing directives are `include`, `define`, `undef`, `if`, `ifdef`, `ifndef`, `else`, `elif`, `endif`, `line`, `error` and `pragma`. `include` is just introduced, and it appears in almost all source files.
+
+`define` is another popular directive, and can be used to define some constants. In the following source code we define `PI` as `3.14` using `#define PI 3.14`.
+
+```C++
+#define PI 3.14
+double len(double r)
+{
+    return 2.0 * PI * r;
+}
+```
+
+After preprocessing, the source code will be as the following. `PI` has been replaced with `3.14`. Then it will be sent to a compile.
+
+```C++
+double len(double r)
+{
+    return 2.0 * 3.14 * r;
+}
+```
+
+## Simple Input and Output
+
+## Lab
 
 Compile with gcc
 Install VS code and run the first example
