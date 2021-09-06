@@ -182,7 +182,7 @@ Compilation is briefly introduced in the previous part. There are several steps 
 
 Preprocessing directives begin with a `#` character, and each directive occupies one line. The most commonly used preprocessing directives are `include`, `define`, `undef`, `if`, `ifdef`, `ifndef`, `else`, `elif`, `endif`, `line`, `error` and `pragma`. `include` is just introduced, and it appears in almost all source files.
 
-`define` is another popular directive, and can be used to define some constants. In the following source code we define `PI` as `3.14` using `#define PI 3.14`.
+`define` is another popular directive, and can be used to define some macros. In the following source code we define `PI` as `3.14` by using `#define PI 3.14`.
 
 ```C++
 #define PI 3.14
@@ -192,7 +192,7 @@ double len(double r)
 }
 ```
 
-After preprocessing, the source code will be as the following. `PI` has been replaced with `3.14`. Then it will be sent to a compile.
+After preprocessing, the source code will be as the following. `PI` has been replaced with `3.14`. Then it will be sent to a compiler. Macro `PI` is not a variable. The preprocessing for macros is like text replacement.
 
 ```C++
 double len(double r)
@@ -201,10 +201,65 @@ double len(double r)
 }
 ```
 
+Since macros behaviors like text replacement, sometimes it is dangerous and cause bugs. If we define `PI` as `2.14+1.0`, the statement is grammatically correct.
+
+```C++
+#define PI 2.14+1.0
+double len(double r)
+{
+    return 2.0 * PI * r;
+}
+```
+
+But after preprocessing the return value of the function will be `4.28+r`, nor `2.0*3.14*r`. It may be not what you expected. Anyway the source code will be compiled successfully, and the compiler will not report any warning and error. You should be very careful when you use macros. 
+
+```C++
+double len(double r)
+{
+    return 2.0 * 2.14+1.0 * r; //= 4.28 + r
+}
+```
+
+We can even define a macro which works like a function. Sometimes macros can achieve better efficiency than functions since macros have no overhead of function callings.
+
+```C+++
+#define MAX(a,b) (((a)>(b))?(a):(b))
+
+int main()
+{
+    //...
+    float a = 2.0f;
+    float b = 3.0f;
+    float m;
+    m = MAX(a, b);
+    //...
+}
+```
+
 ## Command Line Arguments
 
+We can pass some values to our programs through the command line. The command we use previously `g++ hello.cpp -o hello` send three command line arguments `hello.cpp`, `-o` and `hello` to the compiler `g++`. 
 
+The command line arguments can be handled using `main()` arguments. The function argument `argc` refers to the number of the command arguments, and `argv[]` is a pointer array. Each element in `argv[]` points to a `char` array string.
 
-## Simple Input and Output
+```C++
+//argument.cpp
+#include <iostream>
 
+using namespace std;
+int main(int argc, char * argv[])
+{
+    for (int i = 0; i < argc; i++)
+        cout << i << ": " << argv[i] << endl;
+}
+```
 
+When the program from the above code is executed with some arguments, it will print the arguments one by one with their indices.
+
+```bash
+$ ./argument hello.cpp -o hello
+0: ./argument
+1: hello.cpp
+2: -o
+3: hello
+```
