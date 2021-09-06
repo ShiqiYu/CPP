@@ -2,66 +2,9 @@
 
 Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Science and Technology.
 
-## Chapter 1: Get Started
+## [Chapter 1: Get Started](week01/README.md)
 
-### The first example
-
-A C++ example with C++20 standard
-
-### What’s a programming language
-
-Binary instruction - ASM - advanced programming language - (Java) - script programming language - scratch
-
-### History of C and C++
-
-Does we still need C and C++?
-
-### A complete sample
-
-* two cpp files, a header file are compiled together
-* what’s a compiler
-* what’s a linker
-* the difference between compiled languages with script languages 
-* how they work
-* the speed
-
-### More on C/C++ programming
-
-* proprecessor
-* function
-* header 
-
-### Lab: 
-
-Compile with gcc
-Install VS code and run the first example
-
-## Chapter 2: Data types and Arithmetic Operators
-
-### Integer numbers
-
-* variables and their values
-* overflow (be careful!)
-* char and integer
-* unicode(?)
-
-### Floating point numbers
-
-* binary format
-* precision (32F and 64F), don’t f1==f2
-
-### Arithmetic Operators 
-
-* + - * / %
-* Data type conversions (explicitly, implicitly) 
-* auto in C++11 and later
-* ++, - - , +=, -=, *=, /=, 
-
-### Lab
-
-* test integer range
-* conversion between char and integer
-* test float number precision
+## [Chapter 2: Data types and Arithmetic Operators](week02/README.md)
 
 ## Chapter 3: Loops and Branching Statements
 
