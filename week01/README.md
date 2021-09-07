@@ -1,4 +1,4 @@
-# Chapter 1: Get Started
+# Chapter 1: Getting Started
 
 ## The first example
 

@@ -2,9 +2,9 @@
 
 Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Science and Technology.
 
-## [Chapter 1: Get Started](week01/README.md)
+## [Chapter 1: Getting Started](week01/README.md)
 
-## [Chapter 2: Data types and Arithmetic Operators](week02/README.md)
+## [Chapter 2: Data Types and Arithmetic Operators](week02/README.md)
 
 ## Chapter 3: Loops and Branching Statements
 
