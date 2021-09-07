@@ -176,6 +176,14 @@ int main()
 }
 ```
 
+## Different Errors
+
+### Compilation Errors
+
+### Link Errors
+
+### Runtime Errors
+
 ## Preprocessor
 
 Compilation is briefly introduced in the previous part. There are several steps to the compilation before a compiler really compiles the source code. The previous step before the compilation is preprocessing.

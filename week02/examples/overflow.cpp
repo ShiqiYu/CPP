@@ -8,8 +8,7 @@ int main()
     int c = a * b;
     cout << "c = " << c << endl;
 
-    unsigned int a1 = 56789;
-    unsigned int b1 = 56789;
-    unsigned int c1 = a * b;
+    unsigned int c1 = a * b; //danger operation
     cout << "c1 = " << c1 << endl;
+    return 0;
 }

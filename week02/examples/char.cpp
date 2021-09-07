@@ -12,5 +12,7 @@ int main()
     cout << +c1 << ":" << +c2 << ":" << +c3 << endl;
     cout << c4 << endl;
     cout << c5 << endl;
+    
+    return 0;
 }
 

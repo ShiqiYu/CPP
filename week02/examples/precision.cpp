@@ -14,4 +14,5 @@ int main()
     cout << "f2 = " << f2 << endl;
     cout << "f1 - f2 = " << f1 - f2 << endl;
     cout << "(f1 - f2 == 0) = " << (f1 - f2 == 0) << endl;
+    return 0;
 }
