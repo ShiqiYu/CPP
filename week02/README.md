@@ -266,8 +266,83 @@ The output is:
 1200000038076416.000000000000000
 ```
 
-We may think computers are always accurate. But it is not. In floating-point operations, computers always bring some tiny errors. Those errors cannot be eliminated. What we can do is to manage them not to cause a problem.
+We may think computers are always accurate. But it is not. Floating-point operations always bring some tiny errors. Those errors cannot be eliminated. What we can do is to manage them not to cause a problem.
 
+Why floating-point data cannot so accurate? We can go deeper into the floating-point format. The following figure[^float_format] shows an example of a 32-bit floating-point number. There are 1 sign bit, 8 exponent bits and 23 fraction bits.  
+
+![The illustration of a 32-bit floating-point number.](images/float_format.svg)
+
+The value of a 32-bit floating-point number is $(-1)^{b_{31}} \times 2^{(b_{30}b_{29} \dots b_{23})_2 - 127} \times (1.b_{22}b_{21} \dots b_0)_2$. Its minimal normal is $\pm 1.175,494,3\times 10^{-38}$, and the maximal one is $\pm 3.402,823,4\times 10^{38}$. Since a 32-bit floating-point number has much larger data range than a 32-bit integer, its precision is limited, even worse than a 32-bit integer sometimes. There are infinite numbers between 0 and 1.0. We cannot use a limited length binary vector for infinite numbers. There are only limited numbers between 0 and 1.0 can be expressed by a floating-point numbers. The rest cannot and they disappear in the space of a floating-point number. According to the floating-point equation, any combination of 32 zeros and ones cannot express the accurate `1.2`, and only an approximation `1.200000047683716` is in its space.
+
+Since there are precision errors for floating-point numbers, using `==` to compare two floating-point numbers is a bad choice. If the difference between two numbers is less than a very small number, such as `FLT_EPSILON` or `DBL_EPSILON` for `float` and `double` respectively, we can think they are equal.
+
+```C++
+if (f1 == f2)  //bad
+{
+    // ...
+}
+
+if (fabs(f1 - f2) < FLT_EPSILON) // good
+{
+    // ...
+}
+```
+
+The following example `precision.cpp` demonstrates a large number add a small one, the result will be the same with the large one. It is also caused by the precision errors.
+
+```C++
+//precision.cpp
+#include <iostream>
+using namespace std;
+
+int main()
+{
+    float f1 = 2.34E+10f;
+    float f2 = f1 + 10;
+
+    cout.setf(ios_base::fixed, ios_base::floatfield); // fixed-point
+    cout << "f1 = " << f1 << endl;
+    cout << "f2 = " << f2 << endl;
+    cout << "f1 - f2 = " << f1 - f2 << endl;
+    cout << "(f1 - f2 == 0) = " << (f1 - f2 == 0) << endl;
+    return 0;
+}
+```
+
+The output:
+
+```bash
+f1 = 23399999488.000000
+f2 = 23399999488.000000
+f1 - f2 = 0.000000
+(f1 - f2 == 0) = 1
+```
+
+There are two typical floating-point types, `float` and `double`. They are for the single-precision floating point numbers and double-precision numbers. The former one has 32 bits, and the later has 64 bits. `double` has a wider range and a best precision than `float`. But `float` operations are normally much faster than `double` ones.
+
+Please be careful with division operations, if the divisor is 0, the result may be `INF` or `NAN`. The example `nan.cpp` demonstrates how to produce invalid floating-point numbers.
+
+```C++
+//nan.cpp
+#include <iostream>
+using namespace std;
+
+int main()
+{
+    float f1 = 2.0f / 0.0f;
+    float f2 = 0.0f / 0.0f;
+    cout << f1 << endl;
+    cout << f2 << endl;
+    return 0;
+}
+```
+
+Output:
+
+```bash
+inf
+nan
+```
 
 ## Arithmetic Operators
 
@@ -281,3 +356,6 @@ We may think computers are always accurate. But it is not. In floating-point ope
 - test integer range
 - conversion between char and integer
 - test float number precision
+
+
+[^float_format]: https://en.wikipedia.org/wiki/Single-precision_floating-point_format
