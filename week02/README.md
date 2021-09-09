@@ -346,16 +346,74 @@ nan
 
 ## Arithmetic Operators
 
+
+The arithmetric operators are listed in the following table. 
+
+| Operator name | Syntax |
+|---------------|--------|
+| unary plus    | `+a`     |
+| unary minus   | `-a`     |
+| addition      | `a + b`  |
+| subtraction   | `a - b`  |
+| multiplication| `a * b`  |
+| division      | `a / b`  |
+| modulo        | `a % b`  |
+| bitwise NOT   | `~a`     |
+| bitwise AND   | `a & b`  |
+| bitwise OR    | `a | b`  |
+| bitwise XOR   | `a ^ b`  |
+| bitwise left shift  | `a << b` |
+| bitwise right shift | `a >> b` |
+
+The operators and their operants can connected together to create an expression. Some are simple ones such as `a + b`, and some may be a long one with multiple operators such as `a + b * c / (e + f)`. The expression can be assigned to a variable.
+
+```C++
+int result = a + b * c / (e + f);
+```
+
+### Data Type Conversions
+
+There are many data types in C and C++, but only four types are for arithmetic operations. They are `int`, `long`, `float` and `double`. If the operands are not the four types, they will be converted to one of the four implicitly. It can be explained by the following code. The types of `char1` and `char2` are all `unsigned char`, and their maximal values are `255`. If the operation of `char1 + char2` is in `unsigned char` type, the sum `256` will overflow since there is not `256` in `unsigned char`. In the operation, `char1` and `char2` will be converted `int` implicitly first, then the two `int` values are added together. 
+
+```C++
+unsigned char char1 = 255;
+unsigned char char2 = 1;
+int num = char1 + char2; // why num = 256?
+```
+
+The following piece of source code is equivalent to the previous one. 
+
+```C++
+unsigned char char1 = 255;
+unsigned char char2 = 1;
+int num = (int)char1 + (int)char2; //convert to explicitly
+```
+
+In this example, `float` number `1.2f` will be converted to `double` first, and then the two numbers are added together. Their sum is `4.6` (not `4.6f`). The last step is to assign a `double` number `4.6` to an integer variable `num`. Compilers will give a warning message to indicate that the assignment will loss data.
+
+```C++
+int num = 1.2f + 3.4; // -> 1.2 + 3.4 -> 4.6 -> 4
+```
+
+The equivalent code is as follows, and compilers will not give warning messages since you convert the result to `int` explicitly. Compilers will think you know clearly what you do. Explicit type conversions are recommended in most cases.
+
+```C++
+int num = (int)((double)1.2f + 3.4); 
+```
+
+The programmers should be very careful with data type conversions because it will cause data loss. The typical one is that `(int)3.6` will be an integer `3`. The fractional part of a floating point number will be lost. 
+
+### 
+
 - - - - / %
 - Data type conversions (explicitly, implicitly)
 - auto in C++11 and later
 - ++, - - , +=, -=, \*=, /=,
 
-## Lab
+## Exercises
 
 - test integer range
 - conversion between char and integer
 - test float number precision
-
 
 [^float_format]: https://en.wikipedia.org/wiki/Single-precision_floating-point_format
