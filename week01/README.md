@@ -271,3 +271,5 @@ $ ./argument hello.cpp -o hello
 2: -o
 3: hello
 ```
+
+## Exercises 
