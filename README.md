@@ -8,31 +8,7 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 
 ## [Chapter 2: Data Types and Arithmetic Operators](week02/README.md)
 
-## Chapter 3: Loops and Branching Statements
-
-### if-else if- else
-
-### ? : operator
-
-### for loop (break, continue)
-
-### while loop (break, continue)
-
-### switch case (break )
-
-### goto
-
-### Relational expressions
-
- <, <=, >, >=, ==, !=
-
-### Logical expressions ( and, or, not), precedence
-
-### bool and integers
-
-### Lab
-* a calculator? 
-* Makefile (how to manage multiple source files using a Makefile)
+## [Chapter 3: Loops and Branching Statements](week03/README.md)
 
 ## Chapter 4: Data Structures
 
