@@ -272,7 +272,7 @@ Why floating-point data cannot so accurate? We can go deeper into the floating-p
 
 ![The illustration of a 32-bit floating-point number.](images/float_format.svg)
 
-The value of a 32-bit floating-point number is $(-1)^{b_{31}} \times 2^{(b_{30}b_{29} \dots b_{23})_2 - 127} \times (1.b_{22}b_{21} \dots b_0)_2$. Its minimal normal is $\pm 1.175,494,3\times 10^{-38}$, and the maximal one is $\pm 3.402,823,4\times 10^{38}$. Since a 32-bit floating-point number has much larger data range than a 32-bit integer, its precision is limited, even worse than a 32-bit integer sometimes. There are infinite numbers between 0 and 1.0. We cannot use a limited length binary vector for infinite numbers. There are only limited numbers between 0 and 1.0 can be expressed by a floating-point numbers. The rest cannot and they disappear in the space of a floating-point number. According to the floating-point equation, any combination of 32 zeros and ones cannot express the accurate `1.2`, and only an approximation `1.200000047683716` is in its space.
+The value of a 32-bit floating-point number is $(-1)^{b_{31}} \times 2^{(b_{30}b_{29} \dots b_{23})_2 - 127} \times (1.b_{22}b_{21} \dots b_0)_2$. Its minimal normal is $\pm 1.175,494,3\times 10^{-38}$, and the maximal one is $\pm 3.402,823,4\times 10^{38}$. Since a 32-bit floating-point number has much larger data range than a 32-bit integer, its precision is limited, even worse than a 32-bit integer sometimes. There are infinite numbers between 0 and 1.0. We cannot use a limited length binary vector for infinite numbers. There are only limited numbers between 0 and 1.0 can be represented by a floating-point numbers. The rest cannot and they disappear in the space of a floating-point number. According to the floating-point equation, any combination of 32 zeros and ones cannot represent an accurate `1.2`, and only an approximation `1.200000047683716` is in its space.
 
 Since there are precision errors for floating-point numbers, using `==` to compare two floating-point numbers is a bad choice. If the difference between two numbers is less than a very small number, such as `FLT_EPSILON` or `DBL_EPSILON` for `float` and `double` respectively, we can think they are equal.
 
@@ -344,6 +344,37 @@ inf
 nan
 ```
 
+## Constant Numbers and Constant Variables
+
+```C++
+95 // decimal 
+0137// octal 
+0x5F // hexadecimal 
+
+95 // int 
+95u // unsigned int 
+95l // long 
+95ul // unsigned long 
+95lu // unsigned long 
+
+3.14159 // 3.14159
+6.02e13 // 6.02 x 10^13 
+1.6e-9 // 1.6 x 10^-9 
+3.0 // 3.0 
+
+6.02e13f // float 
+6.02e13 // double
+6.02e13L // long double 
+```
+
+If a variable/object is const-qualified, it cannot be modified. It must be initialized when you define it.
+
+```C++
+const float PI = 3.1415926f;
+PI += 1; //error!
+```
+
+
 ## Arithmetic Operators
 
 
@@ -401,14 +432,57 @@ The equivalent code is as follows, and compilers will not give warning messages 
 int num = (int)((double)1.2f + 3.4); 
 ```
 
-The programmers should be very careful with data type conversions because it will cause data loss. The typical one is that `(int)3.6` will be an integer `3`. The fractional part of a floating point number will be lost. 
+The programmers should be very careful with data type conversions because it will cause data loss. The typical one is that `(int)3.6` will be an integer `3`. The fractional part of a floating point number will be lost.
 
-### 
+The following code may also be easy to mislead us. Since `17` and `5` are all `int`, so the operation is an `int` addition, not a `float` addition. The result of the expression `17 / 5` is an integer `3`, not a floating-point `3.4f`. That's the reason why `float_num` is `3.0f`, not `3.4f`.
 
-- - - - / %
-- Data type conversions (explicitly, implicitly)
-- auto in C++11 and later
-- ++, - - , +=, -=, \*=, /=,
+```C+++
+float float_num = 17 / 5; // f = 3.0f, not 3.4f.
+```
+
+When we convert numbers according to the direction from `char` -> `short` -> `int` -> `long` -> `float` -> `double` -> `long double`, normally there is not data loss. But if the conversion is in the opposite direction from `long double` to `char`, it will cause data loss and compilers will warning you most of the time. It is not alway true. Some big integer numbers in `int` may loss precision when they are converted to `float` as shown in the following code.
+
+```C++
+int num_int1 = 2059198192;
+float num_float = num_int1;
+int num_int2 = num_float; // num_int2 = 2059198208
+```
+
+### `auto` Type
+
+The placeholder type specifier `auto` is introduced in C++11. The real type of a variable with `auto` is deduced by from its initializer. We can declare and initialize some variables as follows.
+
+```C++
+auto a = 2; // type of a is int
+auto bc = 2.3; // type of b is double
+auto c; //valid in C, but not in C++
+auto d = a * 1.2; // type of d is double
+```
+
+Once the type of an `auto` variable is deduced, its type will be fixed and not change again. In the following source code, `a` is initialized as an `int` type, and then assigned a double `2.3`. `2.3` will be converted to a `int` value `2` implicitly first, and then assigned to the variable `a`. So the value of `a` should be `2`, not `2.3` since `a` is in type `int`.
+
+```C++
+auto a = 2; // type of a is int
+a = 2.3; // Will a be converted to a double type variable? NO!
+```
+
+### Assignment Operators
+
+Besides of `=`, there are some compound-assignment operators as shown in the following table. They are convenient when we change the lvalue of an operator.
+
+| Assignment expression| Equivalent expression|
+|-----------|--------------|
+| `a = b`   |              |
+| `a += b`  | `a = a + b`  |
+| `a -= b`  | `a = a - b`  |
+| `a *= b`  | `a = a * b`  |
+| `a /= b`  | `a = a / b`  |
+| `a %= b`  | `a = a % b`  |
+| `a &= b`  | `a = a & b`  |
+| `a |= b`  | `a = a | b`  |
+| `a ^= b`  | `a = a ^ b`  |
+| `a <<= b` | `a = a << b` |
+| `a >>= b` | `a = a >> b` |
 
 ## Exercises
 

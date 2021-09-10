@@ -1,9 +1,9 @@
-#include <stdio.h>
-
+#include <iostream>
+using namespace std;
 int main()
 {
-    int i; //bad: uninitialized variable i
-    int j; //bad: uninitialized variable j
-    printf("i = %d, j = %d\n", i, j);
-    return 0;
+    int num1; //bad: uninitialized variable
+    int num2; //bad: uninitialized variable
+    cout << "num1 = " << num1 << endl;
+    cout << "num2 = " << num2 << endl;
 }
