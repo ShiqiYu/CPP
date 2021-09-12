@@ -1,6 +1,6 @@
 # Programming in C++ Efficiently
 
-If you are a publisher and would like to publish the textbook worldwide, you can contact Prof. Shiqi Yu <yusq@sustech.edu.cn>.
+`If you are a publisher and would like to publish the textbook worldwide, you can contact Prof. Shiqi Yu <yusq@sustech.edu.cn>.`
 
 Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Science and Technology.
 

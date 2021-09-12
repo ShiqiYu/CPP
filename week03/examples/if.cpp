@@ -12,8 +12,10 @@ int main()
         cout << "The number is 5." << endl;
     }
     else
-        cout << "The number is 5." << endl;
-    
+    {
+        cout << "The number is not 5." << endl;
+    }
+
     if (num < 5)
         cout << "The number is less than 5." << endl;
     else if (num > 10)
