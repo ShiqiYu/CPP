@@ -233,3 +233,6 @@ Create a matrix template class which can handle different data types.
 ## Chapter 15: Exceptions
 
 ## Chapter 16: Friend Classes and Nested Classes
+
+## Reference
+1. Mr. Yitong Wang's repo for the course in Fall 2020. https://github.com/YeeTone/CS205-2020Fall
