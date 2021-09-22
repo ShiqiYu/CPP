@@ -10,22 +10,7 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 
 ## [Chapter 3: Loops and Branching Statements](week03/README.md)
 
-## Chapter 4: Data Structures
-
-### Arrays (be careful of out of range)
-
-### Array-style strings
-
-### Structures
-
-### Unions
-
-### Enumerations
-
-### Lab: 
-
-* create an array and the element is of a structure 
-* cmake (automatically generate a Makefile according to the environment). 
+## [Chapter 4: Data Structures](week04/README.md)
 
 ## Chapter 5: Input and Output
 
