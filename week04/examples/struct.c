@@ -2,16 +2,21 @@
 #include <string.h>
 #include <stdbool.h>
 
-typedef 
-struct _Student{
+// typedef 
+// struct _Student{
+//     char name[4];
+//     int born;
+//     bool male; 
+// } Student;
+
+struct Student{
     char name[4];
     int born;
     bool male; 
-} Student;
-
+};
 int main()
 {
-    Student stu = {"Yu", 2000, true}; //initialization
+    struct Student stu = {"Yu", 2000, true}; //initialization
     // strcpy(stu.name, "Yu");
     // stu.born = 2000;
     // stu.male = true;
@@ -21,7 +26,7 @@ int main()
         stu.born, 
         stu.male ? "male" : "female");
 
-    Student students[100];
+    struct Student students[100];
     students[50].born = 2002; 
 
     return 0;

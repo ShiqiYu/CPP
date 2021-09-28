@@ -25,4 +25,6 @@ int main()
 
     cout << std::hex;
     cout << "in hex " << ip.address32 << endl;
+
+    return 0;
 }

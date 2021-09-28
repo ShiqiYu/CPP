@@ -5,13 +5,13 @@ struct Student1{
     int id;
     bool male;
     char label;
-    float height;
+    float weight;
 };
 
 struct Student2{
     int id;
     bool male;
-    float height;
+    float weight;
     char label;
 };
 
