@@ -1,4 +1,4 @@
-# Programming in C++ Efficiently
+# Programming in C/C++ Efficiently
 
 `If you are a publisher and would like to publish the textbook worldwide, you can contact Prof. Shiqi Yu <yusq@sustech.edu.cn>.`
 
