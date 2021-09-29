@@ -14,19 +14,19 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 
 * [Lecture notes](week02/Lecture02.pptx)
 * [Lab notes](week02/Lab02.pptx)
-* [Examples](week01/examples)
+* [Examples](week02/examples)
 
 ## [Chapter 3: Loops and Branching Statements](week03/README.md)
 
 * [Lecture notes](week03/Lecture03.pptx)
 * [Lab notes](week03/Lab03.pptx)
-* [Examples](week01/examples)
+* [Examples](week03/examples)
 
 ## [Chapter 4: Data Structures](week04/README.md)
 
 * [Lecture notes](week04/Lecture04.pptx)
 * [Lab notes](week04/Lab04.pptx)
-* [Examples](week01/examples)
+* [Examples](week04/examples)
 
 ## Chapter 5: Memory and Pointer
 
