@@ -4,26 +4,31 @@
 
 Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Science and Technology.
 
-## [Chapter 1: Getting Started](week01/README.md)
+## [Chapter 1: Getting Started](week01/README.md) 
+
+* [Lecture notes](week01/Lecture01.pptx)
+* [Lab notes](week01/Lab01.pptx)
+* [Examples](week01/examples)
 
 ## [Chapter 2: Data Types and Arithmetic Operators](week02/README.md)
 
+* [Lecture notes](week02/Lecture02.pptx)
+* [Lab notes](week02/Lab02.pptx)
+* [Examples](week01/examples)
+
 ## [Chapter 3: Loops and Branching Statements](week03/README.md)
+
+* [Lecture notes](week03/Lecture03.pptx)
+* [Lab notes](week03/Lab03.pptx)
+* [Examples](week01/examples)
 
 ## [Chapter 4: Data Structures](week04/README.md)
 
-## Chapter 5: Input and Output
+* [Lecture notes](week04/Lecture04.pptx)
+* [Lab notes](week04/Lab04.pptx)
+* [Examples](week01/examples)
 
-### C style input and output
-
-### C++ style input and output
-
-### Lab:
-
-* Read from a binary, and print out in tex format
-* How to debug using VS Code.
-
-## Chapter 6: Memory and Pointer
+## Chapter 5: Memory and Pointer
 
 ### Pointer 
 
@@ -45,7 +50,7 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 
 * allocate memory for an array string, modify elements by integer values one by one, then print out the result as a string. Please try to modify the element out of range and see what will happen.
 
-## Chapter 7: Basics of Functions
+## Chapter 6: Basics of Functions
 
 ### Function arguments (pass by value)
 
@@ -61,7 +66,7 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 
 * an example to test integer arguments, pointer argument and reference arguments
 
-## Chapter 8: Advances in Functions
+## Chapter 7: Advances in Functions
 
 ### inline function (why inline? Comparison with macro)
 
@@ -83,7 +88,7 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 `vabs(float * p, int n);`
 `vabs(float * p, int n);`
 
-## Chapter 9: Speedup Your Program
+## Chapter 8: Speedup Your Program
 
 ### Compiler options (-O3 for GCC, -Wall, etc…)
 
@@ -106,7 +111,7 @@ Create two 1Mx1K float matrices matA and matB, compute matA + matB.
 * improve the speed using SIMD, will the speed be improved? Why?
 
 
-## Chapter 10: Basics of Classes
+## Chapter 9: Basics of Classes
 
 ### Class Definition
 
@@ -139,7 +144,7 @@ Create a simple class. Please try to test:
 * modify a data member in a const function
 * initializate a const data member
 
-## Chapter 11: Advances in Classes
+## Chapter 10: Advances in Classes
 
 ### operator overloading
 
@@ -161,7 +166,7 @@ s3=s1;
 
 overload + and << for your own defined class
 
-## Chapter 12: Dynamic Memory Management in Classes
+## Chapter 11: Dynamic Memory Management in Classes
 
 ### Some Default Operations
 
@@ -186,7 +191,7 @@ Create a class for matrices which elements are in float. The class should suppor
 `Matrix c = a + b;`
 `Matrix d = a * 2.0f;`
 
-## Chapter 13: Class Inheritance
+## Chapter 12: Class Inheritance
 
 ### Deriving a Class
 
@@ -203,7 +208,7 @@ Create a class for matrices which elements are in float. The class should suppor
 
 ### Lab
 
-## Chapter 14: Class Templates and std Library
+## Chapter 13: Class Templates and std Library
 
 ### Defining a Class Template
 
@@ -215,9 +220,9 @@ Create a class for matrices which elements are in float. The class should suppor
 
 Create a matrix template class which can handle different data types.
 
-## Chapter 15: Exceptions
+## Chapter 14: Exceptions
 
-## Chapter 16: Friend Classes and Nested Classes
+## Chapter 15: Friend Classes and Nested Classes
 
 ## Reference
 1. Mr. Yitong Wang's repo for the course in Fall 2020. https://github.com/YeeTone/CS205-2020Fall
