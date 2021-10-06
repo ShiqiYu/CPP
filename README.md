@@ -28,27 +28,11 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 * [Lab notes](week04/Lab04.pptx)
 * [Examples](week04/examples)
 
-## Chapter 5: Memory and Pointer
+## [Chapter 5: Memory and Pointer](week05/README.md)
 
-### Pointer 
-
-### Allocate memory: C style
-
-### Allocate memory: C++ style
-
-### const variables 
-
-`const int * p; int * const p;`
-
-### Common mistakes of using a pointer
-
-* null pointer, random pointer
-* out of range
-* memory leak
-
-### Lab
-
-* allocate memory for an array string, modify elements by integer values one by one, then print out the result as a string. Please try to modify the element out of range and see what will happen.
+* [Lecture notes](week05/Lecture05.pptx)
+* [Lab notes](week05/Lab05.pptx)
+* [Examples](week05/examples)
 
 ## Chapter 6: Basics of Functions
 
