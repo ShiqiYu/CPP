@@ -10,15 +10,15 @@ int main()
     int numbers[4] = {0, 1, 2, 3};
     PRINT_ARRAY(numbers, 4)
 
-    int * p = numbers + 1;
-    p++;
+    int * p = numbers + 1; // point to the element with value 1
+    p++; // point to the element with value 2
 
     cout << "numbers = " << numbers << endl;
     cout << "p = " << p << endl;
 
-    *p = 20;
-    *(p-1) = 10;
-    p[1] = 30;
+    *p = 20; //change 2 to 20
+    *(p-1) = 10; //change 1 to 10
+    p[1] = 30; //change 3 to 30
 
     PRINT_ARRAY(numbers, 4)
 

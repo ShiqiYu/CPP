@@ -2,7 +2,8 @@
 #include <cstring>
 using namespace std;
 
-struct Student{
+struct Student
+{
     char name[4];
     int born;
     bool male; 

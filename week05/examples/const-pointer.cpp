@@ -15,7 +15,7 @@ int main()
     int num = 1;
     int another = 2;
     
-    //You cannot change the value the p1 points to through p1
+    //You cannot change the value that p1 points to through p1
     const int * p1 = &num;
     *p1 = 3; //error
     num = 3; //okay
@@ -25,8 +25,10 @@ int main()
     *p2 = 3; //okay
     p2 = &another; //error
 
-    //You cannot change either
+    //You can change neither
     const int* const p3 = &num;
+    *p3 = 3; //error
+    p3 = &another; // error
 
     return 0;
 }
