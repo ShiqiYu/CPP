@@ -70,7 +70,7 @@ cout << "sizeof(Student *) = " << sizeof(Student *) << endl; // 4 or 8
 cout << "sizeof(pStu) = " << sizeof(pStu) << endl; // 4 or 8
 ```
 
-### Pointers of Pointers
+### Pointers of pointers
 
 Since a pointer is a variable, the variable will also be stored in memory and has its own address. Then another pointer can also point to this pointer. The figure shows the variable `num` in the example source code. Pointer `p` points to `num`, and Pointer `pp` points to `p`. `*(*pp) = 20` will change the value of number to `20`.
 
@@ -131,7 +131,7 @@ const int* const p3 = &num;
 p3 = &another; // error
 ```
 
-### Pointers and Arrays
+### Pointers and arrays
 
 The elements in an array are also stored in memory and have their addresses. The following code shows how to get the addresses of the first 4 elements in an array and assign them to 4 pointer variables. After printing out the addresses, you can find those addresses have an interval of `sizeof(Student)`. Member `born` of the second element can be accessed by `students[1].born` or `p1->born`.
 
@@ -202,6 +202,16 @@ p[0] = 3; //okay
 
 
 ## Allocate memory: C style
+
+When a program is executed by the operating system (OS), the OS will allocate memory to the program. The memory for a program can be divided into 5 segments. 
+
+![Different data segments of a program.](images/data-segments.png)
+
+* Code: It contains executable code. It is read-only and fixed size.
+* Data: It contains initialized static variables including global static and local static ones.
+* BSS: BSS section contains uninitialized static data.
+* Heap: It contains dynamically allocated memory. The memory allocated by `malloc()` or `new` is in this segment.
+* Stack: Local variables and call stack are stored in it.
 
 ## Allocate memory: C++ style
 
