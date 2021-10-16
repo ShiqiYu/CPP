@@ -32,25 +32,13 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 * [Lab notes](week05/Lab05.pptx)
 * [Examples](week05/examples)
 
-## Chapter 6: Basics of Functions
+## [Chapter 6: Basics of Functions](week06/README.md)
 
-### Function arguments (pass by value)
-
-### array and pointer arguments
-
-### C style array strings
-
-### struct arguments (copy data or address)
-
-### Reference and const
-
-### Lab:
-
-* an example to test integer arguments, pointer argument and reference arguments
+* [Lecture notes](week06/Lecture06.pptx)
+* [Lab notes](week06/Lab06.pptx)
+* [Examples](week06/examples)
 
 ## Chapter 7: Advances in Functions
-
-### inline function (why inline? Comparison with macro)
 
 ### Default arguments
 
