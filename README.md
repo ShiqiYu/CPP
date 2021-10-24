@@ -38,25 +38,11 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 * [Lab notes](week06/Lab06.pptx)
 * [Examples](week06/examples)
 
-## Chapter 7: Advances in Functions
+## [Chapter 7: Advances in Functions](week07/README.md)
 
-### Default arguments
-
-### Function overloading
-
-### Function templates
-
-### Recursion 
-
-### Pointer to functions
-
-### Lab:
-
-* implement a function with default arguments.
-* overload a function which can compute the absolute value for an array, the array can be int, float and double 
-`vabs(int * p, int n); //should n be int or size_t, what's the difference, please create an arrary with more than 2^31 elements` 
-`vabs(float * p, int n);`
-`vabs(float * p, int n);`
+* [Lecture notes](week07/Lecture07.pptx)
+* [Lab notes](week07/Lab07.pptx)
+* [Examples](week07/examples)
 
 ## Chapter 8: Speedup Your Program
 

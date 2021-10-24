@@ -9,9 +9,9 @@ inline float max_function(float a, float b)
         return b;
 }
 
-#define MAX_MACRO(a, b) a>b ? a : b
+//#define MAX_MACRO(a, b) a>b ? a : b
 
-//#define MAX_MACRO(a, b) (a)>(b) ? (a) : (b)
+#define MAX_MACRO(a, b) (a)>(b) ? (a) : (b)
 
 int main()
 {
