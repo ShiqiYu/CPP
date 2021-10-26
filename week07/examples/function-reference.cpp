@@ -8,7 +8,7 @@ float (&norm_ref)(float x, float y) = norm_l1; //norm_ref is a function referenc
 
 int main()
 {
-    cout << "L1 norm of (-3, 4) = " << norm_ref(-3.0f, 4.0f) << endl;
+    cout << "L1 norm of (-3, 4) = " << norm_ref(-3, 4) << endl;
     return 0;
 }
 

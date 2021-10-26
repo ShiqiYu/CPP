@@ -13,7 +13,7 @@ void div2(double val)
 {
 
     cout << "Entering val = " << val << endl;
-    if (val > 0.1)
+    if (val > 1.0)
         div2( val / 2); // function calls itself
     else
         cout << "--------------------------" << endl;
