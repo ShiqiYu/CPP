@@ -50,38 +50,11 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 * [Lab notes](week08/Lab08.pptx)
 * [Examples](week08/examples)
 
-## Chapter 9: Basics of Classes
+## [Chapter 9: Basics of Classes](week09/README.md)
 
-### Class Definition
-
-* build-in types and user defined types
-* data componient and method/functions
-
-### Using a Class
-
-* Access control: public and private
-* Create an object and access members
-* const member functions
-* const member variables
-* static member variables
-
-### Constructors and Destructors
-
-* Constructors
-* Default Constructors
-* Destructors
-* Initialization
-
-### this pointer
-
-### Lab
-
-Create a simple class. Please try to test:
-
-* access a private member
-* modify a const data member
-* modify a data member in a const function
-* initializate a const data member
+* [Lecture notes](week09/Lecture09.pptx)
+* [Lab notes](week09/Lab09.pptx)
+* [Examples](week09/examples)
 
 ## Chapter 10: Advances in Classes
 
@@ -89,7 +62,7 @@ Create a simple class. Please try to test:
 
 Constructor and assignment
 
-```
+```CPP
 Student s2=s1;
 Student s3;
 s3=s1;
