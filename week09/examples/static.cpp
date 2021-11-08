@@ -7,7 +7,7 @@ class Student
 {
   private:
     static size_t student_total; // declaration only
-    //inline static size_t student_total; //C++17, definition outside isn't needed
+    //inline static size_t student_total = 0; //C++17, definition outside isn't needed
     char * name;
     int born;
     bool male; 
@@ -62,10 +62,12 @@ void Student::printInfo()
     std::cout << "Gender: " << (male ? "Male" : "Female") << std::endl;
 }
 
-size_t Student::student_total = 0; // definition it here
+//size_t Student::student_total = 0; // definition it here
 
 int main()
 {
+    cout << "---We have " << Student::getTotal() << " students---" << endl;
+
     Student * class1 = new Student[3]{
         {"Tom", 2000, true},
         {"Bob", 2001, true},
@@ -81,6 +83,7 @@ int main()
     class1[1].printInfo();
     delete []class1;
 
+    cout << "---We have " << Student::getTotal() << " students---" << endl;
 
     return 0;
 }

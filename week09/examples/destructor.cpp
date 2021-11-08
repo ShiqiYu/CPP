@@ -57,14 +57,15 @@ void Student::printInfo()
 
 int main()
 {
-    Student yu;
-    yu.printInfo();
+    {
+        Student yu;
+        yu.printInfo();
 
-    yu.setName("Yu");
-    yu.setBorn(2000);
-    yu.setGender(true);
-    yu.printInfo();
-
+        yu.setName("Yu");
+        yu.setBorn(2000);
+        yu.setGender(true);
+        yu.printInfo();
+    }
     Student xue = Student("XueQikun", 1962, true);
     xue.printInfo();
 

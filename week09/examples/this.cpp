@@ -20,7 +20,7 @@ class Student
     Student(const char * name, int born, bool male)
     {
         this->name =  new char[1024];
-        setName(name);
+        this->setName(name);
         this->born = born;
         this->male = male;
         cout << "Constructor: Person(const char, int , bool)" << endl;
@@ -64,8 +64,7 @@ int main()
     };
 
     class1[1].printInfo();
-    delete class1;
-    //delete []class1;
+    delete []class1;
 
 
     return 0;

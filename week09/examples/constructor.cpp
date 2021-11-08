@@ -20,7 +20,7 @@ class Student
     Student(const char * initName): born(0), male(true)
     {
         setName(initName);
-        cout << "Constructor: Person(const char, int , bool)" << endl;
+        cout << "Constructor: Person(const char*)" << endl;
     }
     Student(const char * initName, int initBorn, bool isMale)
     {
