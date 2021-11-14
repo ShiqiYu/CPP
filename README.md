@@ -56,27 +56,11 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 * [Lab notes](week09/Lab09.pptx)
 * [Examples](week09/examples)
 
-## Chapter 10: Advances in Classes
+## [Chapter 10: Advances in Classes](week10/README.md)
 
-### operator overloading
-
-Constructor and assignment
-
-```CPP
-Student s2=s1;
-Student s3;
-s3=s1;
-```
-
-### friend Functions
-
-### << operator
-
-### Automatic Conversions and Type Casts for Classes
-
-### Lab
-
-overload + and << for your own defined class
+* [Lecture notes](week10/Lecture10.pptx)
+* [Lab notes](week10/Lab10.pptx)
+* [Examples](week10/examples)
 
 ## Chapter 11: Dynamic Memory Management in Classes
 
@@ -86,7 +70,7 @@ overload + and << for your own defined class
 * Copy constructor
 * Assign operator
 * Default destructor
-* How pointer members work defaultly
+* How pointer members work by default
 
 ### An Example with Dynamic Data Allocation
 
