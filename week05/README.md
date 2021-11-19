@@ -195,7 +195,7 @@ We do not know how many elements followed the address that a pointer points to, 
 ```C++
 int num = 0;
 int * p = &num;
-p[-1] = 2; //out of bound
+p[-1] = 2; //out of bound
 p[0] = 3; //okay
 *(p+1) = 4; //out of bound
 ````
