@@ -42,7 +42,7 @@ I must emphasis the danger of uninitialization here. If a variable is not initia
 ```C++
 //init.cpp
 #include <stdio.h>
-int main()
+int main()
 {
     int i; //bad: uninitialized variable i
     int j; //bad: uninitialized variable j
