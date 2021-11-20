@@ -23,11 +23,13 @@ class MyTime
     //implicit conversion
     operator int() const
     {
+        std::cout << "operator int()" << std::endl;
         return this->hours * 60 + this->minutes;
     }
     //explicit conversion
     explicit operator float() const
     {
+        std::cout << "explicit operator float()" << std::endl;
         return float(this->hours * 60 + this->minutes);
     }
 

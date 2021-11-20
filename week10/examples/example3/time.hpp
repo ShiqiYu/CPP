@@ -39,23 +39,6 @@ class MyTime
         sum.minutes %= 60;
         return sum;
     }
-    MyTime & operator+=(int m) 
-    {
-        this->minutes += m;
-        this->hours +=  this->minutes / 60;
-        this->minutes %= 60;
-        return *this;
-    }
-
-    MyTime operator+(const std::string str) const
-    {
-        MyTime sum = *this;
-        if(str=="one hour")
-            sum.hours = this->hours + 1;
-        else
-            std::cerr<< "Only \"one hour\" is supported." << std::endl;
-        return sum;
-    }
 
     friend MyTime operator+(int m, const MyTime & t)
     {
