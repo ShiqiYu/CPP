@@ -3,9 +3,8 @@
 ## Some Default Operations
 
 * Default constructor
-* Copy constructor
-* Assign operator
-* Default destructor
+* Default copy constructor
+* Default copy assignment
 * How pointer members work by default
 
 ## An Example with Dynamic Data Allocation
