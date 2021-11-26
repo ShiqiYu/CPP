@@ -27,10 +27,10 @@ class MyString
         if( this->buf_len != 0)
         {
             this->characters = new char[this->buf_len]{};
+            if(data)
+                strncpy(this->characters, data, this->buf_len);
         }
-        if(data)
-            strncpy(this->characters, data, this->buf_len);
-
+    
         return true;
     }
     friend std::ostream & operator<<(std::ostream & os, const MyString & ms)

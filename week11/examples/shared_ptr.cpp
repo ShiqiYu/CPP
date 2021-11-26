@@ -48,11 +48,11 @@ class MyTime
 int main()
 {
     // std::shared_ptr<MyTime> mt0 = new MyTime(0,70); //error
-    // MyTime * mt0 = std::make_shared<MyTime>(1, 70); //error
-    {
-        std::shared_ptr<MyTime> mt1(new MyTime(10));
-        std::cout << *mt1 << std::endl;
-    }
+    // MyTime * mt1 = std::make_shared<MyTime>(1, 70); //error
+    // {
+    //     std::shared_ptr<MyTime> mt1(new MyTime(10));
+    //     std::cout << *mt1 << std::endl;
+    // }
 
     {
         std::shared_ptr<MyTime> mt1 = std::make_shared<MyTime>(1, 70);
