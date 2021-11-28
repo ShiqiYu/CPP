@@ -68,22 +68,11 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 * [Lab notes](week11/Lab11.pptx)
 * [Examples](week11/examples)
 
-## Chapter 12: Class Inheritance
+## [Chapter 12: Class Inheritance](week12/README.md)
 
-### Deriving a Class
-
-* Constructor
-* Destructor
-
-### Static and Dynamic Binding
-
-### Vitural Functions
-
-### Access Control (protected)
-
-### Dynamic Memory Management
-
-### Lab
+* [Lecture notes](week12/Lecture12.pptx)
+* [Lab notes](week12/Lab12.pptx)
+* [Examples](week12/examples)
 
 ## Chapter 13: Class Templates and std Library
 
