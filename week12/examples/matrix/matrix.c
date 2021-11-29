@@ -94,25 +94,25 @@ bool add(const Matrix * input1, const Matrix * input2, Matrix *output)
         return false;
     }
 
-    // //version 1, the best one
-    // size_t length = input1->rows * input1->cols;
-    // const float * p1 = input1->data;
-    // const float * p2 = input2->data;
-    // float * p3 = output->data;
-    // for(size_t i = 0; i < length; i++)
-    //     *(p3++) = *(p1++) + *(p2++);
+    //version 1, the best one
+    size_t length = input1->rows * input1->cols;
+    const float * p1 = input1->data;
+    const float * p2 = input2->data;
+    float * p3 = output->data;
+    for(size_t i = 0; i < length; i++)
+        *(p3++) = *(p1++) + *(p2++);
     
-    // //version 2
-    // for(size_t r = 0; r < input1->rows; r++)
-    // {
-    //     // to calculate (cols * r) here, don't put it into the inner loop
-    //     const float * p1 = input1->data + input1->cols * r;
-    //     const float * p2 = input2->data + input2->cols * r;
-    //     float * p3 = output->data +  + output->cols * r;
+    //version 2
+    for(size_t r = 0; r < input1->rows; r++)
+    {
+        // to calculate (cols * r) here, don't put it into the inner loop
+        const float * p1 = input1->data + input1->cols * r;
+        const float * p2 = input2->data + input2->cols * r;
+        float * p3 = output->data +  + output->cols * r;
 
-    //     for(size_t c = 0; c < input1->cols; c++)
-    //         *(p3++) = *(p1++) + *(p2++);
-    // }
+        for(size_t c = 0; c < input1->cols; c++)
+            *(p3++) = *(p1++) + *(p2++);
+    }
 
     //version 3, a bad one
     for(size_t r = 0; r < input1->rows; r++)
