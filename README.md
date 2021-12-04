@@ -74,17 +74,11 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 * [Lab notes](week12/Lab12.pptx)
 * [Examples](week12/examples)
 
-## Chapter 13: Class Templates and std Library
+## [Chapter 13: Class Templates and std Library](week13/README.md)
 
-### Defining a Class Template
-
-### Templates in OpenCV
-
-### Templates in std
-
-### Lab
-
-Create a matrix template class which can handle different data types.
+* [Lecture notes](week13/Lecture13.pptx)
+* [Lab notes](week13/Lab13.pptx)
+* [Examples](week13/examples)
 
 ## Chapter 14: Exceptions
 
