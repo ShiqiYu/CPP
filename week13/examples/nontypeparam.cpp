@@ -8,8 +8,11 @@ class Mat
     T data[rows][cols];
   public:
     Mat(){}
-    Mat(const Mat&) = delete;
-    Mat& operator=(const Mat&) = delete;
+    //// the default copy constructor will copy each element of a static array member
+    //// so we do not 'delete' the copy constructor
+    //// the same with the assignment operator
+    // Mat(const Mat&) = delete;
+    // Mat& operator=(const Mat&) = delete;
     T getElement(size_t r, size_t c);
     bool setElement(size_t r, size_t c, T value);
 };
@@ -54,6 +57,11 @@ int main()
     Mat<float, 3, 1> vec;
     vec.setElement(2, 0, 3.14159f);
     cout << vec.getElement(2, 0) << endl;
+
+    Mat<float, 3, 1> vec2(vec);
+    cout << vec.getElement(2, 0) << endl;
+
+    // vec2 = mat; //error
 
     return 0;
 }
