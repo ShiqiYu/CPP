@@ -16,7 +16,7 @@ Do not use any third-party library except OpenCV to read image data from image f
 
 1. The parameters trained have been put into a CPP file `/weights/face_binary_cls.cpp`. You can just include it into your project.
 
-1. You can use OpenCV to read images. The image data stored in `cv::Mat` is `unsigned char` type. You should convert the data to `float` and normalize it to range `[0.0, 1.0]` firstly before operate it in a convolutional layer. Be careful with the order of pixel colors (channels) in cv::Mat. It is BRG, not RGB. The input of the CNN model should be a 3x128x128 (channel, height, width) data blob (matrix). You can adapt your class in Project 4 for this project. 
+1. You can use OpenCV to read images. The image data stored in `cv::Mat` is `unsigned char` type. You should convert the data to `float` and normalize it to range `[0.0, 1.0]` firstly before operate it in a convolutional layer. Be careful with the order of pixel colors (channels) in cv::Mat. It is BGR, not RGB. The input of the CNN model should be a 3x128x128 (channel, height, width) data blob (matrix). You can adapt your class in Project 4 for this project.
 
 1. The output of the CNN model is a vector with two float numbers `[c0, c1]`. `c0 + c1 = 1.0` and `c1` is the possibility that the input is a person (upper body only).
 
