@@ -80,7 +80,11 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 * [Lab notes](week13/Lab13.pptx)
 * [Examples](week13/examples)
 
-## Chapter 14: Exceptions
+## [Chapter 14: Error Handling](week14/README.md)
+
+* [Lecture notes](week14/Lecture14.pptx)
+* [Lab notes](week14/Lab14.pptx)
+* [Examples](week14/examples)
 
 ## Chapter 15: Friend Classes and Nested Classes
 
