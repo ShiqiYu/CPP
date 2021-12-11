@@ -2,6 +2,8 @@
 
 ## Standard Output Stream and Standard Error Stream
 
-## assert()
+## assert
 
 ## Exceptions
+
+## More About Exceptions
