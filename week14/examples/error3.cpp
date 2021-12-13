@@ -4,8 +4,8 @@
 
 float ratio(float a, float b)
 {
-    if (fabs(a - b) < FLT_EPSILON)
-        throw "The two arguments are too close.";
+    if (fabs(a + b) < FLT_EPSILON)
+        throw "The sum of the two arguments is close to zero.";
 
     return (a - b) / (a + b);
 }

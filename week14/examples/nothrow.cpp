@@ -24,6 +24,12 @@ int main()
     else
         cout << "So bad, null pointer." << endl;
 
+    // for(size_t i = 0; i < length; i++)
+    //     p[i] = i;
+    // size_t sum;
+    // for(size_t i = 0; i < length; i++)
+    //     sum += p[i];
+    // cout << "Sum = " << sum << endl;
     if(p)
         delete [] p;
     return 0;
