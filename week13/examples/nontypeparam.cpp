@@ -61,7 +61,7 @@ int main()
     Mat<float, 3, 1> vec2(vec);
     cout << vec2.getElement(2, 0) << endl;
 
-    vec2 = mat; //error
+    // vec2 = mat; //error
 
     return 0;
 }
