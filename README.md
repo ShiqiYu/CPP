@@ -86,7 +86,11 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 * [Lab notes](week14/Lab14.pptx)
 * [Examples](week14/examples)
 
-## Chapter 15: Friend Classes and Nested Classes
+## [Chapter 15: Nested Classes and RTTI](week15/README.md)
+
+* [Lecture notes](week15/Lecture15.pptx)
+* [Lab notes](week15/Lab15.pptx)
+* [Examples](week15/examples)
 
 ## Reference
 1. Mr. Yitong Wang's repo for the course in Fall 2020. https://github.com/YeeTone/CS205-2020Fall
