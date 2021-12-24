@@ -20,9 +20,9 @@ public:
 
 int main()
 {
-    Mat image(DataType::TYPE8U);
+    Mat image(TYPE8U);
 
-    if (image.getType() == DataType::TYPE8U)
+    if (image.getType() == TYPE8U)
         std::cout << "This is an 8U matrix." << std::endl;
 	else
         std::cout << "I am not an 8U matrix." << std::endl;

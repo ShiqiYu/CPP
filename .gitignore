@@ -1,5 +1,3 @@
 *.out
 settings.json
-week01/~$Lecture01.pptx
-week02/~$Lecture02.pptx
-week03/~$Lecture03.pptx
+.DS_Store

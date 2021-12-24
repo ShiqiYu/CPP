@@ -29,9 +29,9 @@ int main()
     cout << person.getInfo() << endl;
     cout << ps->getInfo() << endl; // danger if getInfo is not virtual
 
-    // ps = dynamic_cast<Student*>(&person);
-    // printf("address = %p\n", ps);
-    // pp = dynamic_cast<Person*>(&student);
-    // printf("address = %p\n", pp);
+    ps = dynamic_cast<Student*>(&person);
+    printf("address = %p\n", ps);
+    pp = dynamic_cast<Person*>(&student);
+    printf("address = %p\n", pp);
     return 0;
 }
