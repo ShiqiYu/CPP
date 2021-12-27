@@ -53,7 +53,7 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 1. Pointers
 1. Pointers and arrays
 1. Allocate memory in C style
-1. Allocate memory in CPP style
+1. Allocate memory in C++ style
 
 * [Lecture notes](week05/Lecture05.pptx)
 * [Lab notes](week05/Lab05.pptx)
@@ -85,7 +85,7 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 
 ## [Chapter 8: Speedup Your Program](week08/README.md)
 
-1. c and cpp with ARM
+1. C and C++ with ARM
 1. Speedup your program
 1. An example with SIMD and OpenMP
 1. Avoid memory copy in OpenCV
