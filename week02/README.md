@@ -97,7 +97,7 @@ $ ./a.out
 c = -1069976775
 ```
 
-The number 56789 is 0xDDD5 in hexadecimal format, and is a 16-bit length number. Their product is a 32-bit number 0xC0397339. The thirty second bit of it is 1. The result 0xC0397339 is copied into an `int` variable and its highest bit 1 is taken as the sign bit of the signed integer. That is the reason why the output is a negative number. If we use `unsigned int` for `c`. The result 0xC0397339 will be taken as an unsigned 32-bit integer. It will be the result that we expect.
+The number `56789` is `0xDDD5` in hexadecimal format, and is a 16-bit length number. Their product is a 32-bit number `0xC0397339`. The thirty second bit of it is 1. The result `0xC0397339` is copied into an `int` variable and its highest bit 1 is taken as the sign bit of the signed integer. That is the reason why the output is a negative number. If we use `unsigned int` for `c`. The result `0xC0397339` will be taken as an unsigned 32-bit integer. It will be the result that we expect.
 
 ```C++
 int a = 56789;
