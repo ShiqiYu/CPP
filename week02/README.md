@@ -436,7 +436,7 @@ The programmers should be very careful with data type conversions because it wil
 
 The following code may also be easy to mislead us. Since `17` and `5` are all `int`, so the operation is an `int` addition, not a `float` addition. The result of the expression `17 / 5` is an integer `3`, not a floating-point `3.4f`. That's the reason why `float_num` is `3.0f`, not `3.4f`.
 
-```C+++
+```C++
 float float_num = 17 / 5; // f = 3.0f, not 3.4f.
 ```
 
