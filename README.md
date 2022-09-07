@@ -7,8 +7,11 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 1. The first example
 1. Different programming languages
 1. Compile and link
+1. Different Errors
 1. Preprocessor and macros
 1. Simple input and output
+1. Command line arguments
+1. Exercises
 
 * [Lecture notes](week01/Lecture01.pptx)
 * [Lab notes](week01/Lab01.pptx)

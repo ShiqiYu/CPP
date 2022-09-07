@@ -218,7 +218,7 @@ But if you run the program it generates, you will get the following error. Segme
 segmentation fault  ./a.out
 ```
 
-## Preprocessor
+## Preprocessor and Macros
 
 The compilation is briefly introduced in the previous part. There are several steps to the compilation before a compiler really compiles the source code. The previous step before the compilation is preprocessing.
 
@@ -277,6 +277,8 @@ int main()
     //...
 }
 ```
+
+## Simple Input and Output
 
 ## Command Line Arguments
 
