@@ -264,7 +264,7 @@ double len(double r)
 
 We can even define a macro that works like a function. Sometimes macros can achieve better efficiency than functions since macros have no overhead of function callings.
 
-```C+++
+```C++
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
 int main()
