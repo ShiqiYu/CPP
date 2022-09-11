@@ -1,46 +1,48 @@
 # A Simple Calculator
 
-Implement a calculator which can multiply two integers.
+Implement a calculator which can multiply two numbers.
 
 ## Requirements
 
-1. When you run the program as follows, it will output the expression and the result.
+1. When you run the program as follows, it will output the expression and the result. **The two numbers should be input through the command line arguments**. If the two numbers are integers, the program will multiply them in integer format.
 
-```bash
-$./mul 
-Please input two integers
-2 3
-2 * 3 = 6
-```
+    ```bash
+    $./mul 2 3
+    2 * 3 = 6
+    ```
 
-2. If you input two integers by the command line arguments, it can handle.
+2. If the input contains some non-integer numbers, the program will try to interpret the input as floating-point numbers.
 
-```bash
-$./mul 2 3
-2 * 3 = 6
-```
+    ```bash
+    ./mul 3.1416 2
+    3.1416 * 2 = 6.2832
+    ./mul 3.1415 2.0e-2
+    3.1415 * 0.02 = 0.062832
+    ```
 
-3. If you input some non-integer numbers, the program can tell you that the input is wrong.
-
-```bash
-./mul 
-Please input two integers
-a  2
-```
+3. It can tell that the input is not a number.
+    ```bash
+    ./mul a  2
+    The input cannot be interpret as numbers!
+    ```
 
 4. If you input some big integers, what will happen? Please describe some possible solutions, and try to implement them.
 
-```bash
-./mul 
-Please input two integers
-1234567890 1234567890
-```
+    ```bash
+    ./mul 1234567890 1234567890
+    ```
 
-5. Some others which can improve the program.
+5. If you input some big floating-point numbers, what will happen? Please describe some possible solutions, and try to implement them.
+
+    ```bash
+    ./mul 1.0e200 1.0e200
+    ```
+
+6. Some others which can improve the program.
 
 ## Rules:
 
-1. Please submit your project report before its deadline. After the deadline (even 1 second), **0 score!** (or students who enroll in this course before Sep. 6, they should submit their project reports by 23:59 on Sep. 19. For the rest students they should submit their project reports in one week or by Sep. 19 (the later one) after they enroll in the course.
-1. Please submit two separated files: report.pdf and source.cpp. Please do **NOT** put the two files into a compressed one.
-1. You score will also depend on the quality of your source code and your report. Your report should be easy to understand and describe your work well, especially the highlights of your work.
-1. Please pay more attention to your code style. After all this is not ACM-ICPC contest. You have enough time to write code with both correct result and good code style. You will get deduction if your code style is terrible. You can read Google C++ Style Guide (http://google.github.io/styleguide/cppguide.html ) or some other guide for code style.
+1. Please submit your project report before its deadline. After the deadline (even 1 second), **0 score!**. The deadline is 23:59 on Sep. 25.
+1. Please submit two separate files: report.pdf and source.cpp. Please do **NOT** put the two files into a compressed one.
+1. Your score will also depend on the quality of your source code and your report. Your report should be easy to understand and describe your work well, especially the highlights of your work.
+1. Please pay more attention to your code style. This is not ACM-ICPC contest. You have enough time to write code with both correct results and a good code style. You will get deduction if your code style is terrible. You can read Google C++ Style Guide (http://google.github.io/styleguide/cppguide.html ) or some other guide for code style.
