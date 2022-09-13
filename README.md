@@ -20,8 +20,9 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 ## [Chapter 2: Data Types and Arithmetic Operators](week02/README.md)
 
 1. Integer numbers
-1. More integer types
-1. Floating point numbers
+1. Different integer types
+1. Floating-point numbers
+1. Constant numbers and constant variables
 1. Arithmetic operators
 
 * [Lecture notes](week02/Lecture02.pptx)
