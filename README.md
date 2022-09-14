@@ -2,6 +2,12 @@
 
 Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Science and Technology. The lecture videos can be found at https://www.bilibili.com/video/BV1Vf4y1P7pq
 
+## Why Should You Take This Course?
+
+> C and C++ have a big overlap in syntax. The standards of C and C++ are also very long, and still in evolution to accept new features. This course will not cover all aspects of C and C++. It is impossible. The course focuses on the most important and unique parts of C and C++. Pointers and memory management will be described and explained almost through all chapters. They are a nightmare for many students for causing bugs. But they are very important for computing efficiently, and also are the unique advantages of C and C++. Some people hate them, and some love them. We can say pointers and memory management make C and C++ unique from most other advanced programming languages.
+>
+>The course is designed for undergraduate students who have learnt Java or Python. If the students taking this course have some background knowledge of programming, such as knowing a little Java or Python, it will be helpful. If not, it is also not a problem.
+
 ## [Chapter 1: Getting Started](week01/README.md) 
 
 1. The first example
@@ -29,7 +35,7 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 * [Lab notes](week02/Lab02.pptx)
 * [Examples](week02/examples)
 
-## [Chapter 3: Loops and Branching Statements](week03/README.md)
+## [Chapter 3: Branching and Looping Statements](week03/README.md)
 
 1. `if` statement
 1. Conditions
