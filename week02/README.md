@@ -154,7 +154,7 @@ If the integer is a signed one, the highest bit (the 32nd bit for `int`) will be
 
 ### Boolean Type
 
-The boolean type in C++ (not in C) is `bool`, and its value can be `true` or `false`. The integer value of `true` is 1, and the value of `false` is 0. The width of `bool` is 1 byte, not 1 bit. It means that a `bool` variable consumes 1 byte for data, but only uses the lowest 1 bit.
+The Boolean type in C++ (not in C) is `bool`, and its value can be `true` or `false`. The integer value of `true` is 1, and the value of `false` is 0. The width of `bool` is 1 byte, not 1 bit. It means that a `bool` variable consumes 1 byte for data, but only uses the lowest 1 bit.
 
 Since `bool` indeed is a kind of integer in C/C++, `bool` can be converted to other kinds of integers.
 
@@ -179,7 +179,7 @@ The following equivalent source code is easier to understand. The expression `(-
 bool b = (-256 != 0); 
 ```
 
-There is not a boolean type in the C standard. Some old programs may use `typedef` to create a customized boolean type.
+There is not a Boolean type in the C standard. Some old programs may use `typedef` to create a customized Boolean type.
 
 ```cpp
 typedef char bool;
@@ -187,7 +187,7 @@ typedef char bool;
 #define false 0
 ```
 
-If you program in pure C language and want to use `bool`, you can include a header file introduced in C99. It is a better choice than to define it using `typedef`. C had no `bool` before the C99 standard. C99 adds `_Bool` for the boolean type. Additionally, `bool` is defined as an alias of `_Bool`, `true` is as `1`  and `false` is as `0` by macros in the header file `<stdbool.h>` which is also introduced by C99.
+If you program in pure C language and want to use `bool`, you can include a header file introduced in C99. It is a better choice than to define it using `typedef`. C had no `bool` before the C99 standard. C99 adds `_Bool` for the Boolean type. Additionally, `bool` is defined as an alias of `_Bool`, `true` is as `1`  and `false` is as `0` by macros in the header file `<stdbool.h>` which is also introduced by C99.
 
 ```cpp
 #include <stdbool.h>
@@ -412,7 +412,7 @@ The arithmetric operators are listed in the following table.
 | modulo        | `a % b`  |
 | bitwise NOT   | `~a`     |
 | bitwise AND   | `a & b`  |
-| bitwise OR    | `a \| b`  |
+| bitwise OR    | `a | b`  |
 | bitwise XOR   | `a ^ b`  |
 | bitwise left shift  | `a << b` |
 | bitwise right shift | `a >> b` |
@@ -500,7 +500,7 @@ Besides of `=`, there are some compound-assignment operators as shown in the fol
 | `a /= b`  | `a = a / b`  |
 | `a %= b`  | `a = a % b`  |
 | `a &= b`  | `a = a & b`  |
-| `a \|= b`  | `a = a \| b`  |
+| `a |= b`  | `a = a | b`  |
 | `a ^= b`  | `a = a ^ b`  |
 | `a <<= b` | `a = a << b` |
 | `a >>= b` | `a = a >> b` |
