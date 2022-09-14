@@ -124,7 +124,7 @@ There are 3 logical operators as listed in the following table. In logical expre
 |----------------|----------------------|-----------------------|---------------------|
 | negation       | `!`                  | not                   | `!a`, `not a`       |
 | AND            | `&&`                 | and                   | `a && b`, `a and b` |
-| Inclusive OR   | `\|\|`               | or                    | `a \|\| b`, `a or b`|
+| Inclusive OR   | `||`                 | or                    | `a || b`, `a or b`  |
 
 It should be noted that the precedences of the 3 logical operators are different. `not` operator has the highest precedence, then `and`, and `or` has the lowest precedence among them.
 
