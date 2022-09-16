@@ -505,6 +505,14 @@ Besides of `=`, there are some compound-assignment operators as shown in the fol
 | `a <<= b` | `a = a << b` |
 | `a >>= b` | `a = a >> b` |
 
+## Special Notes
+
+In programming of C or C++, the developers are expected to understand all the details of different data types. Different from Python, the values in a variable can increase even out of the boundary of `int32`, the real storage for variables will adapt automatically. In Java, more warnings and errors will be given to prevent you from overflowing or precision problems. But in C or C++, there are much less warnings. You have to be very careful with different data types since your program will be wrong even no compilation errors. 
+
+Besides, we also need to change the idea that computers are accurate. If the computation is carried out with floating-point numbers, there must be some tiny errors. We should realize that tiny errors are always there. What we can do is just to control the errors since they are difficult to eliminate.
+
+To repeat, the numbers may be out of range, the computation may have errors, the results may be integer division, not floating-point division, etc. Please try to explore all possibilities and how the instructions work when you write a line of source code. More thinking and deeper understanding, fewer bugs.
+
 ## Exercises
 
 Compile and run the following source code. Is the output exactly match what you expect? If not, explain why?
