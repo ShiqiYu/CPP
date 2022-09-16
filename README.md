@@ -40,7 +40,7 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 
 1. `if` statement
 1. `? :` operator
-1. Conditions
+1. Conditional expressions
 1. `while` loop
 1. `for` loop
 1. `goto` statement
