@@ -96,7 +96,7 @@ The previous example can even be simplified to an expression without a jump stat
 factor = (isPositive) * 2 - 1;
 ```
 
-## Conditions
+## Conditional Expressions
 
 There is a conditional expression following `if` or `else if`, such as `num < 5` in the following example. It should be an expression that is convertible to `bool`. It can be a relational expression, a logical expression or a combination of them.
 
@@ -149,7 +149,7 @@ if (!p) // if(p == NULL)
     cout << "Memory allocation failed." << endl;
 ```
 
-### A trap in conditional expressions
+### A Trap in Conditional Expressions
 
 Whereas in a `if` statement, a `while` loop or a `for` loop, you have to be careful enough not to misspell `==` as `=` in conditional expressions. It is a common error among beginners. The following loop is an endless loop.
 

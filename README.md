@@ -30,6 +30,7 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 1. Floating-point numbers
 1. Constant numbers and constant variables
 1. Arithmetic operators
+1. Special notes
 
 * [Lecture notes](week02/Lecture02.pptx)
 * [Lab notes](week02/Lab02.pptx)
@@ -38,10 +39,12 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 ## [Chapter 3: Branching and Looping Statements](week03/README.md)
 
 1. `if` statement
+1. `? :` operator
 1. Conditions
 1. `while` loop
 1. `for` loop
-1. `goto` switch
+1. `goto` statement
+1. `switch` statement
 
 * [Lecture notes](week03/Lecture03.pptx)
 * [Lab notes](week03/Lab03.pptx)
