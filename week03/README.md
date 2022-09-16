@@ -5,6 +5,7 @@
 `if` statement can conditionally execute code, and is a frequently used statement in programming. The execution depends on Boolean expressions. Such as in the following example, When the value of `num` is less than `5`, the statement will be executed and print "The number is less than 5." 
 
 ```cpp
+// if.cpp
 int num  = 2;
 // some operations may change num's value
 if (num < 5)
@@ -71,6 +72,7 @@ if(num < 20)
 The ternary conditional operator `? :` is also widely used to simplify some `if else` statements. Let us look at the following code first. The variable `factor` will be assigned different values depending on the condition of `isPositive`.
 
 ```cpp
+//ternary.cpp
 bool isPositive = true;
 int factor = 0;
 //some operations may change isPositive's value
@@ -147,7 +149,27 @@ if (!p) // if(p == NULL)
     cout << "Memory allocation failed." << endl;
 ```
 
-## `while` loop (`break`, `continue`)
+### A trap in conditional expressions
+
+Whereas in a `if` statement, a `while` loop or a `for` loop, you have to be careful enough not to misspell `==` as `=` in conditional expressions. It is a common error among beginners. The following loop is an endless loop.
+
+```cpp
+bool flag = false;
+// Do something ...
+if (flag = true) // error!
+{
+    // Do something
+}
+```
+There are many kinds of expressions, such as `3 + 4`, `a + b` and `a == b`. They all have value. `a = b`  is also an expression, and its value is `a`, which is assigned the value of `b`. So `if(flag = true)` is equivalent to `if(true)`, the body will be executed whatever the value of `flag` is.
+
+If you can understand that `a = b` is an expression and has a value, then it is also easy to understand `int m = (b = 8);` in the following code. It means `m` will be assigned as the value of `(b = 8)
+```cpp
+int b = 0;
+int m = (b = 8);
+```
+
+## `while` loop
 
 The syntax of the `while` loop is as follows. If the conditional expression is `true`, the loop body will be executed. 
 ```cpp
@@ -174,7 +196,7 @@ int main()
 }
 ```
 
-The test takes place before each iteration in a `while` loop. There is a `do-while` loop, and the test takes place after each iteration in it. The following `do-while` loop behavior is the same with the previous `while` loop. 
+The test takes place before each iteration in a `while` loop. There is a `do-while` loop, and the test takes place after each iteration in it. The following `do-while` loop behavior is the same as the previous `while` loop. 
 
 ```cpp
 int num = 10;
@@ -200,14 +222,147 @@ The output of the previous example.
 num = 0
 ```
 
-## `for` loop (`break`, `continue`)
+### `break` statement
 
-## `switch case` (`break`)
+The `break` statement will terminate a loop when it is executed. The remaining part of the loop body will not be executed also.
+
+```cpp
+int num = 10;
+while (num > 0)
+{
+    if (num == 5)
+        break;
+    cout << "num = " << num << endl;
+    num--;
+}
+// jump to here after `break` is executed
+```
+
+### `continue` statement
+The `continue` statement will also change the routine of the loop, but it will not terminate the loop. The program will skip the remaining part of the loop body and continue the next iteration. In the following example, `num = 5` will not be printed, but `num = 6` and `num = 4` will.
+
+```cpp
+int num = 10;
+while (num > 0)
+{
+    if (num == 5)
+        continue; // "num = 5" will not be printed
+    cout << "num = " << num << endl;
+    num--;
+}
+// jump to here after `break` is executed
+```
+
+
+
+## `for` loop
+
+The syntax of the `for` loop is as follows. There are an initialization clause, a conditional expression and an iteration expression following the keyword `for`.
+```cpp
+for (init-clause; cond-expression; iteration-expression)
+    loop-statement
+```
+
+The following code demonstrates the usage of `for`. The variable `i` is initialized to 1. The value of `i` will increase 1 by `i++` in each iteration. The iteration will continue until the condition `i < 10` becomes `false`.
+
+```cpp
+int sum = 0;
+for(int i = 0; i < 10; i++)
+{
+    sum += i;
+    cout << "Line " << i << endl;
+}
+cout << "sum = " << sum << endl;
+```
+
+The previous `for` loop can be converted to a `while` loop as follows. The only difference between the two pieces of code is the scope of `i`. The scope of `i` is inside the `for` loop body in the previous example. But it is outside of the `while` loop body since it is declared outside of the loop body.
+```cpp
+int sum = 0;
+int i = 0;
+while(i < 10)
+{
+    sum += i;
+    cout << "Line " << i << endl;
+    i++
+}
+cout << "sum = " << sum << endl;
+```
+
+A `while` loop can also be converted to a `for` loop as shown in the following example.
+```cpp
+while(num > 0)
+{
+    cout << "num = " << num << endl;
+    num--;
+}
+```
+
+```cpp
+for(; num > 0; )
+{
+    cout << "num = " << num << endl;
+    num--;
+}
+```
+
+Some may be curious that the previous `for` loop has no initialization clause and iteration expression. The truth is that even the conditional expression can be omitted as follows.
+
+```cpp
+for(; ; )
+{
+    if (num > 0)
+        break;
+    cout << "num = " << num << endl;
+    num--;
+}
+```
+
+The behaviors of `break` and `continue` are the same as those in the `while` loop. The details will not be presented here again.
 
 ## `goto` statement
+The `goto` statement can make the program jump to the desired location. Too many `goto` statements may break the flow of execution. It is an unrecommended statement. The most frequently used place is for error handling. In the function `mysqure()`, a label `EXIT_ERROR` is declared. If the argument cannot meet the requrement, the program will use `goto` to jump to location `EXIT_ERROR` where are the error handling source code. 
+
+The `goto` statement is widely used in Linux kernel functions, which are in the C language. Those functions normally exit from multiple locations, and some common work such as cleanup has to be done. But in C++ exceptions are more commonly used error handling which is introduced in a later chapter.
+
+```cpp
+//goto.cpp
+float mysquare(float value)
+{
+    float result = 0.0f;
+    if(value >= 1.0f || value <= 0)
+    {
+        cerr << "The input is out of range." << endl;
+        goto EXIT_ERROR;
+    }
+    result = value * value;
+    return result;
+  EXIT_ERROR:
+    //do sth such as closing files here
+    return 0.0f;
+}
+```
+## `switch` Statement
+
+The `switch` statement can execute one of several statements depending on the value of an expression. The expression follows the keyword `switch`, and it is `input_char` in the following example. Some beginners may forget `break`, which prevents executing the following statements. If `switch` is understood in the `if - else if - else` manner, `break` is easy to omit. Actually, you can think there are many entrances defined by `case`, and `switch` works like `goto`. The execution will start from a matched entrance defined by `case`, continue until reaching `break`.
+
+```cpp
+//switch.cpp
+switch (input_char)
+{
+    case 'a':
+    case 'A':
+        cout << "Move left." << endl;
+        break;
+    case 'd':
+    case 'D':
+        cout << "Move right." << endl;
+        break;
+    default: 
+        cout << "Undefined key." << endl;
+        break;
+}
+```
 
 ## Exercises
 
-* a calculator? 
-
-* Makefile (how to manage multiple source files using a Makefile)
+* Please use a Makefile to manage multiple source files. You can use `make` to compile and link, and `make clean` to remove all generated files.
