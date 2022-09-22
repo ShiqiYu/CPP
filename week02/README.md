@@ -536,9 +536,12 @@ int main() {
 
     float f = 0.1f;
     float sum10x = f + f + f + f + f + f + f + f + f + f;
+    float mul10x = f * 10;
 
     cout<<"sum10x = "<< sum10x << endl;
+    cout<<"mul10x = "<< mul10x << endl;
     cout<<"(sum10x == 1) is "<< (sum10x == 1.0) << endl;
+    cout<<"(mul10x == 1) is "<< (mul10x == 1.0) << endl;
     return 0;
 }
 ```
