@@ -114,7 +114,7 @@ But you can change the pointer itself.
 p1 = &another; //okay
 ```
 
-`const` can also be put between `*` and the name. If so, the pointer will alway point to that memory, cannot pointer to other places. But the value in that memory can be changed.
+`const` can also be put between `*` and the name. If so, the pointer will alway point to that memory, cannot point to other places. But the value in that memory can be changed.
 
 ```C++
 //You cannot change value of p2 (address)
