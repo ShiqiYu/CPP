@@ -15,7 +15,7 @@ int main()
     MyString str3;
     cout << "str3: " << str3 << endl;
     str3 = str1;
-    cout << "str3:" << str3 << endl;
+    cout << "str3: " << str3 << endl;
 
     return 0;
 }
