@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <cfloat>
+#include <cmath>
 
 float ratio(float a, float b)
 {
