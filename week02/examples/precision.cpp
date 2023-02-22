@@ -3,7 +3,7 @@ using namespace std;
 
 int main()
 {
-    float f1 = 2.34E+10f;
+    float f1 = 23400000000;
     float f2 = f1 + 10;
 
     cout.setf(ios_base::fixed, ios_base::floatfield); // fixed-point

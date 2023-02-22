@@ -40,32 +40,25 @@ It must be emphasized that the danger of uninitialization here. If a variable is
 
 ```cpp
 //init.cpp
-#include <stdio.h>
+#include <iostream>
+using namespace std;
 int main()
 {
-    int i; //bad: uninitialized variable i
-    int j; //bad: uninitialized variable j
-    printf("i = %d, j = %d\n", i, j);
-    return 0;
+    int num1; //bad: uninitialized variable
+    int num2; //bad: uninitialized variable
+    cout << "num1 = " << num1 << endl;
+    cout << "num2 = " << num2 << endl;
 }
 ```
 
-The example `init.cpp` has two uninitialized variables `i` and `j`. They are printed out immediately after their declarations. I tried the example on different platforms `x86_64` and `arm64`, and different results were given. Random values were given on `x86_64`, but zeros on `arm64`.
+The example `init.cpp` has two uninitialized variables `num1` and `num2`. They are printed out immediately after their declarations. I tried the example on my computer, and the output is as follows. If you run it on your computer, the output may be different. 
 
 ```console
-$ file a.out
-a.out: Mach-O 64-bit executable x86_64
-$ ./a.out  
-i = 2, j = 13299749
-```
-```console
-$ file a.out 
-a.out: Mach-O 64-bit executable arm64
-$ ./a.out 
-i = 0, j = 0
+num1 = 1
+num2 = 74456160
 ```
 
-If you use some uninitialized variables, sometimes your program can work very well, such as the example on `arm64`. Sometimes it cannot. If it is a huge program and works very well most of the time, but bugs appear when you migrate it to another platform. It will be your nightmare to debug a random error from a huge program. To avoid those situations, it is better to write each line of source code carefully.
+Using uninitialized variables in your program can result in unpredictable behavior. While the program may appear to work well in some cases, it may also fail unexpectedly in others. If your program is large and appears to be working well, but problems arise when you migrate it to a different platform, debugging a random error from a large program can become a nightmare. To avoid such situations, it is important to write each line of code carefully and ensure that all variables are properly initialized.
 
 ### Overflow
 
@@ -262,7 +255,7 @@ Different widths for the same integer type may cause the program difficult to po
 
 ## Floating-Point Numbers
 
-Before introducing floating-point numbers, I would like to introduce the following example `float`.cpp`. `f1` is assigned `1.2`, and then is multiplied by `1000000000000000` (15 zeros). We may think `f2` should be `1200000000000000`. But if we print `f1` and `f2` with very high precision, we will find a terrible truth. `f2` is not what we expected, and even `f1` is also not exactly equal to `1.2`.
+Before introducing floating-point numbers, I would like to introduce the following example `float.cpp`. `f1` is assigned `1.2`, and then is multiplied by `1000000000000000` (15 zeros). We may think `f2` should be `1200000000000000`. But if we print `f1` and `f2` with very high precision, we will find a terrible truth. `f2` is not what we expected, and even `f1` is also not exactly equal to `1.2`.
 
 ```cpp
 //float.cpp
@@ -273,7 +266,7 @@ int main()
     float f1 = 1.2f;
     float f2 =  f1 * 1000000000000000;
     cout << std::fixed << std::setprecision(15) << f1 << endl;
-    cout << std::fixed << std::setprecision(15) << f2 << endl;
+    cout << std::fixed << std::setprecision(1) << f2 << endl;
     return 0;
 }
 ```
@@ -282,7 +275,7 @@ The output is:
 
 ```console
 1.200000047683716
-1200000038076416.000000000000000
+1200000038076416.0
 ```
 
 We may think computers are always accurate. But it is not. Floating-point operations always bring some tiny errors. Those errors cannot be eliminated. What we can do is manage them not to cause a problem.
@@ -316,7 +309,7 @@ using namespace std;
 
 int main()
 {
-    float f1 = 2.34E+10f;
+    float f1 = 23400000000;
     float f2 = f1 + 10;
 
     cout.setf(ios_base::fixed, ios_base::floatfield); // fixed-point
@@ -412,7 +405,7 @@ The arithmetric operators are listed in the following table.
 | modulo        | `a % b`  |
 | bitwise NOT   | `~a`     |
 | bitwise AND   | `a & b`  |
-| bitwise OR    | `a | b`  |
+| bitwise OR    | `a \| b`  |
 | bitwise XOR   | `a ^ b`  |
 | bitwise left shift  | `a << b` |
 | bitwise right shift | `a >> b` |
@@ -500,7 +493,7 @@ Besides of `=`, there are some compound-assignment operators as shown in the fol
 | `a /= b`  | `a = a / b`  |
 | `a %= b`  | `a = a % b`  |
 | `a &= b`  | `a = a & b`  |
-| `a |= b`  | `a = a | b`  |
+| `a \|= b`  | `a = a \| b`  |
 | `a ^= b`  | `a = a ^ b`  |
 | `a <<= b` | `a = a << b` |
 | `a >>= b` | `a = a >> b` |
