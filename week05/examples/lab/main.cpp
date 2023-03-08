@@ -1,15 +1,12 @@
-#include<iostream>
-using std::cout;
-using std::endl;
+#include <iostream>
+#include "functions.h"
+using namespace std;
 
-int plus( int a, int b ) {
-        return a + b;
-}
+int main()
+{
+    printhello();
 
-int main() {
-        int a = 1234567890;
-        int b = 1234567890;
-        int c = plus(a, b);
-        cout<<"a + b = "<<c<<endl;
-        return 0;
+    cout << "This is main:" << endl;
+    cout << "The factorial of 5 is: " << factorial(5) << endl;
+    return 0;
 }
