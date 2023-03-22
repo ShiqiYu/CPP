@@ -36,20 +36,9 @@ int main()
         }
 
     //find max value of matB
-    for(int r = 0; r < matB.rows; r++)
-        for (int c = 0; c < matB.cols; c++)
-        {
-            float val = matB.pData[ r * matB.cols + c];
-            maxb = ( maxb > val ? maxb : val);
-        }
+
 
     //find max value of matC
-    for(int r = 0; r < matC.rows; r++)
-        for (int c = 0; c < matC.cols; c++)
-        {
-            float val = matC.pData[ r * matC.cols + c];
-            maxc = ( maxc > val ? maxc : val);
-        }
 
     cout << "max(matA) = " << maxa << endl;
     cout << "max(matB) = " << maxb << endl;
