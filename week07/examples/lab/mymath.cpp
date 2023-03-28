@@ -1,6 +1,15 @@
+#include <iostream>
 #include "mymath.h"
 
-int add(int x1, int x2) 
+float arraySum(const float *array, size_t size)
 {
-    return x1 + x2;
+    if(array == NULL)
+    {
+        std::cerr << "NULL pointer!" << std::endl;
+        return 0.0f;
+    }
+    float sum = 0.0f;
+    for(size_t i = 0; i < size; i++)
+        sum += array[i];
+    return sum;
 }
