@@ -62,11 +62,11 @@ float dotproduct_avx2(const float *p1, const float * p2, size_t n)
 
     for (size_t i = 0; i < n; i+=8)
     {
-        a = _mm256_load_ps(p1 + i);
-        b = _mm256_load_ps(p2 + i);
+        a = _mm256_loadu_ps(p1 + i);
+        b = _mm256_loadu_ps(p2 + i);
         c =  _mm256_add_ps(c, _mm256_mul_ps(a, b));
     }
-    _mm256_store_ps(sum, c);
+    _mm256_storeu_ps(sum, c);
     return (sum[0]+sum[1]+sum[2]+sum[3]+sum[4]+sum[5]+sum[6]+sum[7]);
 #else
     std::cerr << "AVX2 is not supported" << std::endl;
@@ -90,11 +90,11 @@ float dotproduct_avx2_omp(const float *p1, const float * p2, size_t n)
     #pragma omp parallel for
     for (size_t i = 0; i < n; i+=8)
     {
-        a = _mm256_load_ps(p1 + i);
-        b = _mm256_load_ps(p2 + i);
+        a = _mm256_loadu_ps(p1 + i);
+        b = _mm256_loadu_ps(p2 + i);
         c =  _mm256_add_ps(c, _mm256_mul_ps(a, b));
     }
-    _mm256_store_ps(sum, c);
+    _mm256_storeu_ps(sum, c);
     return (sum[0]+sum[1]+sum[2]+sum[3]+sum[4]+sum[5]+sum[6]+sum[7]);
 #else
     std::cerr << "AVX2 is not supported" << std::endl;
