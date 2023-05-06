@@ -58,6 +58,7 @@ int main()
 {
     {
         Base base(1, 2);
+        cout << "Product = " << base.product() << endl;
         cout << base << endl;
     }
     cout << "----------------------" << endl;
