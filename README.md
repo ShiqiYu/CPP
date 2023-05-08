@@ -191,3 +191,5 @@ Course 'CS205 C/C++ Program Design' in 2021 Fall at Southern University of Scien
 ## Reference
 1. Mr. Yitong Wang's repo for the course in Fall 2020. https://github.com/YeeTone/CS205-2020Fall
 2. Mr. Zheng Dong's repo for the course in Fall 2021. https://github.com/XDZhelheim/CS205_C_CPP_Lab
+3. Mr. Wenqian Yan's repo for the course in Fall 2022. https://github.com/YanWQ-monad/SUSTech_CS205_Projects
+
