@@ -10,7 +10,7 @@ class MyVector
   public:
     MyVector(size_t length): length(length)
     {
-        data = new T[length * sizeof(T)]{};
+        data = new T[length]{};
     }
     ~MyVector()
     {

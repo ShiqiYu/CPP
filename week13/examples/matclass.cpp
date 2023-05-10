@@ -11,7 +11,7 @@ class IntMat
     IntMat(size_t rows, size_t cols): 
                     rows(rows), cols(cols)
     {
-        data = new int[rows * cols * sizeof(int)]{};
+        data = new int[rows * cols]{};
     }
     ~IntMat()
     {
@@ -50,7 +50,7 @@ class FloatMat
     FloatMat(size_t rows, size_t cols): 
                     rows(rows), cols(cols)
     {
-        data = new float[rows * cols * sizeof(float)]{};
+        data = new float[rows * cols]{};
     }
     ~FloatMat()
     {

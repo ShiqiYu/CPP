@@ -11,7 +11,7 @@ class Mat
   public:
     Mat(size_t rows, size_t cols): rows(rows), cols(cols)
     {
-        data = new T[rows * cols * sizeof(T)]{};
+        data = new T[rows * cols]{};
     }
     ~Mat()
     {
