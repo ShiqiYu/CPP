@@ -279,7 +279,7 @@ double len(double r)
 }
 ```
 
-Since macros behaviors like text replacement, sometimes it is dangerous and cause bugs. If we define `PI` as `2.14+1.0`, the statement is grammatically correct.
+Since macros behaves like text replacement, sometimes it is dangerous and cause bugs. If we define `PI` as `2.14+1.0`, the statement is grammatically correct.
 
 ```cpp
 #define PI 2.14+1.0
@@ -289,7 +289,7 @@ double len(double r)
 }
 ```
 
-But after preprocessing the return value of the function will be `4.28+r`, not `2.0*3.14*r`. It may be not what you expected. Anyway, the source code will be compiled successfully, and the compiler will not report any warning or error. You should be very careful when you use macros. 
+But after preprocessing the return value of the function will be `4.28+r`, not `2.0*3.14*r`. It may not be what you expected. Anyway, the source code will be compiled successfully, and the compiler will not report any warning or error. You should be very careful when you use macros. 
 
 ```cpp
 double len(double r)
