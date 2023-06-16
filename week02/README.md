@@ -411,7 +411,7 @@ The arithmetric operators are listed in the following table.
 | bitwise left shift  | `a << b` |
 | bitwise right shift | `a >> b` |
 
-The operators and their operants can be connected together to create an expression. Some are simple ones such as `a + b`, and some may be long ones with multiple operators such as `a + b * c / (e + f)`. The expression can be assigned to a variable.
+The operators and their operands can be connected together to create an expression. Some are simple ones such as `a + b`, and some may be long ones with multiple operators such as `a + b * c / (e + f)`. The expression can be assigned to a variable.
 
 ```cpp
 int result = a + b * c / (e + f);
@@ -455,7 +455,7 @@ The following code may also be easy to mislead us. Since `17` and `5` are all `i
 float float_num = 17 / 5; // f = 3.0f, not 3.4f.
 ```
 
-When we convert numbers according to the direction from `char` -> `short` -> `int` -> `long` -> `float` -> `double` -> `long double`, normally there is not data loss. But if the conversion is in the opposite direction from `long double` to `char`, it will cause data loss and compilers will warn you most of the time. But it is not always true. Some big integer numbers in `int` may loss precision when they are converted to `float` as shown in the following code.
+When we convert numbers according to the direction from `char` -> `short` -> `int` -> `long` -> `float` -> `double` -> `long double`, normally there is not data loss. But if the conversion is in the opposite direction from `long double` to `char`, it will cause data loss and compilers will warn you most of the time. But it is not always true. Some big integer numbers in `int` may lose precision when they are converted to `float` as shown in the following code.
 
 ```cpp
 int num_int1 = 100000004;
