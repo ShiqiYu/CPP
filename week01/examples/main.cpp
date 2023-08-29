@@ -4,8 +4,8 @@
 using namespace std;
 int main()
 {
-    int a, b;
-    int result;
+    int a = 0, b = 0;
+    int result = 0;
 
     cout << "Pick two integers:";
     cin >> a;
