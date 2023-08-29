@@ -239,7 +239,7 @@ while (num > 0)
 ```
 
 ### `continue` statement
-The `continue` statement will also change the routine of the loop, but it will not terminate the loop. The program will skip the remaining part of the loop body and continue the next iteration. In the following example, `num = 5` will not be printed, but `num = 6` and `num = 4` will.
+The `continue` statement will also change the routine of the loop, but it will not terminate the loop. The program will skip the remaining part of the loop body and continue the next iteration. In the following example, `num = 5` will not be printed, but `num = 4` should be. Really? Please run the source code to check if everything is correct.
 
 ```cpp
 int num = 10;
@@ -250,7 +250,6 @@ while (num > 0)
     cout << "num = " << num << endl;
     num--;
 }
-// jump to here after `break` is executed
 ```
 
 
@@ -278,12 +277,12 @@ cout << "sum = " << sum << endl;
 The previous `for` loop can be converted to a `while` loop as follows. The only difference between the two pieces of code is the scope of `i`. The scope of `i` is inside the `for` loop body in the previous example. But it is outside of the `while` loop body since it is declared outside of the loop body.
 ```cpp
 int sum = 0;
-int i = 0;
-while(i < 10)
+int i = 0; // put the init-clause here
+while(i < 10) // while is followed by the cond-expression
 {
     sum += i;
     cout << "Line " << i << endl;
-    i++
+    i++; // put the iteration-expression here
 }
 cout << "sum = " << sum << endl;
 ```
@@ -310,7 +309,7 @@ Some may be curious that the previous `for` loop has no initialization clause an
 ```cpp
 for(; ; )
 {
-    if (num > 0)
+    if (num <= 0)
         break;
     cout << "num = " << num << endl;
     num--;
