@@ -3,8 +3,8 @@
 
 struct Matrix
 {
-    int rows;
-    int cols;
+    size_t rows;
+    size_t cols;
     float * pData;
 };
 
@@ -12,8 +12,8 @@ float matrix_max(struct Matrix mat)
 {
     float max = FLT_MIN;
     //find max value of mat
-    for(int r = 0; r < mat.rows; r++)
-        for (int c = 0; c < mat.cols; c++)
+    for(size_t r = 0; r < mat.rows; r++)
+        for (size_t c = 0; c < mat.cols; c++)
         {
             float val = mat.pData[ r * mat.cols + c];
             max = ( max > val ? max : val);
@@ -21,7 +21,7 @@ float matrix_max(struct Matrix mat)
     return max;
 }
 
-Matrix * create_matrix(int rows, int cols)
+Matrix * create_matrix(size_t rows, size_t cols)
 {
     Matrix * p = new Matrix{rows, cols};
     p->pData = new float[p->rows * p->cols]{1.f, 2.f, 3.f};
