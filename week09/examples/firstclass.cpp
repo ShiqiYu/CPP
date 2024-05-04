@@ -9,11 +9,15 @@ class Student
     bool male; 
     void setName(const char * s)
     {
-        strncpy(name, s, sizeof(name));
+        size_t len = sizeof(name) - 1;
+        strncpy(name, s, len);
     }
     void setBorn(int b)
     {
-        born = b;
+        if (b >= 1990 && b <= 2020 )
+            born = b;
+        else
+            std::cerr << "The input b is " << b << ", and should be in [1990, 2020]." << std::endl;
     }
     void setGender(bool isMale)
     {
