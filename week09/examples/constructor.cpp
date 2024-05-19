@@ -12,12 +12,12 @@ class Student
   public:
     Student()
     {
-        name[0] = 0;
+        name[0] = '\0';
         born = 0;
         male = false;
         cout << "Constructor: Person()" << endl;
     }
-    Student(const char * initName): born(0), male(true)
+    Student(const char * initName): born(0), male(false)
     {
         setName(initName);
         cout << "Constructor: Person(const char*)" << endl;
@@ -32,8 +32,14 @@ class Student
 
     void setName(const char * s)
     {
+        if (s == NULL)
+        {
+            std::cerr << "The input is NULL." << std::endl;
+            return;
+        }
         size_t len = sizeof(name) - 1;
         strncpy(name, s, len);
+        name[len] = '\0';
     }
     void setBorn(int b)
     {
@@ -78,6 +84,11 @@ int main()
     Student * zhou =  new Student("Zhou", 1991, false);
     zhou->printInfo();
     delete zhou;
+
+    Student * s =  new Student();
+    // Student * s =  new Student; // the same
+    s->printInfo();
+    delete s;
 
     return 0;
 }

@@ -9,8 +9,14 @@ class Student
     bool male; 
     void setName(const char * s)
     {
+        if (s == NULL)
+        {
+            std::cerr << "The input is NULL." << std::endl;
+            return;
+        }
         size_t len = sizeof(name) - 1;
         strncpy(name, s, len);
+        name[len] = '\0';
     }
     void setBorn(int b)
     {

@@ -17,13 +17,14 @@ class Student
         male = false;
         cout << "Constructor: Person()" << endl;
     }
-    Student(const char * name, int born, bool male)
+    Student(const char * initName, int initBorn, bool isMale)
     {
-        this->name =  new char[1024];
-        this->setName(name);
-        this->born = born;
-        this->male = male;
+        name =  new char[1024];
+        setName(initName);
+        born = initBorn;
+        male = isMale;
         cout << "Constructor: Person(const char, int , bool)" << endl;
+        cout << "this = " << static_cast<void *>(this) << endl;        
     }
     ~Student()
     {
@@ -33,8 +34,14 @@ class Student
 
     void setName(const char * s)
     {
+        if (s == NULL)
+        {
+            std::cerr << "The input is NULL." << std::endl;
+            return;
+        }
         size_t len = 1024 - 1;
         strncpy(name, s, len);
+        name[len] = '\0';
     }
     void setBorn(int b)
     {
@@ -61,15 +68,7 @@ void Student::printInfo()
 
 int main()
 {
-    Student * class1 = new Student[3]{
-        {"Tom", 2000, true},
-        {"Bob", 2001, true},
-        {"Amy", 2002, false},
-    };
-
-    class1[1].printInfo();
-    delete []class1;
-
-
+    Student * s = new Student("Tom", 2000, true);
+    cout << "s = " << static_cast<void *>(s) << endl;
     return 0;
 }
