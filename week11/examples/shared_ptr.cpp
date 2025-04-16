@@ -48,16 +48,17 @@ class MyTime
 int main()
 {
     // std::shared_ptr<MyTime> mt0 = new MyTime(0,70); //error
-    // MyTime * mt1 = std::make_shared<MyTime>(1, 70); //error
+    // MyTime * mt1 = std::make_shared<MyTime>(0, 70); //error
     // {
     //     std::shared_ptr<MyTime> mt1(new MyTime(10));
     //     std::cout << *mt1 << std::endl;
     // }
 
     {
-        std::shared_ptr<MyTime> mt1 = std::make_shared<MyTime>(1, 70);
+        std::shared_ptr<MyTime> mt0(new MyTime(70));
+        std::shared_ptr<MyTime> mt1 = std::make_shared<MyTime>(70);
         std::shared_ptr<MyTime> mt2 = mt1;
-        std::shared_ptr<MyTime> mt3 = mt2;
+        std::shared_ptr<MyTime> mt3(mt2);
 
         std::cout << "mt1: " << *mt1 << std::endl;
         std::cout << "mt2: " << *mt2 << std::endl;
@@ -72,6 +73,10 @@ int main()
         std::cout << "mt3: " << *mt3 << std::endl;
         std::cout << "use_count() = " << mt3.use_count() << std::endl;
     }
+
+    std::shared_ptr<int[]> numbers(new int[128]); //since C++17
+    numbers[10] = 88;
+    std::cout << numbers[10] << std::endl;
 
     return 0;
 }

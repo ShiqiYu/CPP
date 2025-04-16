@@ -20,7 +20,15 @@ class MyTime
     {
         std::cout << "Constructor MyTime(int,int)" << std::endl;
     }
-
+    MyTime & operator=(int m)
+    {
+        std::cout << "operator=(int)" << std::endl;
+        this->hours = 0;
+        this->minutes = m;
+        this->hours =  this->minutes / 60;
+        this->minutes %= 60;
+        return *this;
+    }
     // prefix increment
     MyTime& operator++()
     {

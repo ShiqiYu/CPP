@@ -33,11 +33,21 @@ class Student
 
     void setName(const char * s)
     {
-        strncpy(name, s, 1024);
+        if (s == NULL)
+        {
+            std::cerr << "The input is NULL." << std::endl;
+            return;
+        }
+        size_t len = 1024 - 1;
+        strncpy(name, s, len);
+        name[len] = '\0';
     }
     void setBorn(int b)
     {
-        born = b;
+        if (b >= 1990 && b <= 2020 )
+            born = b;
+        else
+            std::cerr << "The input b is " << b << ", and should be in [1990, 2020]." << std::endl;
     }
     // the declarations, the definitions are out of the class
     void setGender(bool isMale);

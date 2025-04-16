@@ -11,9 +11,9 @@ T sum(T x, T y)
 
 int main()
 {
-    // Implicitly instantiates product<int>(int, int)
+    // Implicitly instantiates sum<int>(int, int)
     cout << "sum = " << sum<int>(2.2f, 3.0f) << endl;
-    // Implicitly instantiates product<float>(float, float)
+    // Implicitly instantiates sum<float>(float, float)
     cout << "sum = " << sum(2.2f, 3.0f) << endl;
 
     return 0;

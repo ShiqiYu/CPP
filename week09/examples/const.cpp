@@ -33,13 +33,23 @@ class Student
         delete [] name;
     }
 
-    void setName(const char * name)
+    void setName(const char * s)
     {
-        strncpy(this->name, name, 1024);
+        if (s == NULL)
+        {
+            std::cerr << "The input is NULL." << std::endl;
+            return;
+        }
+        size_t len = 1024 - 1;
+        strncpy(name, s, len);
+        name[len] = '\0';
     }
-    void setBorn(int born)
+    void setBorn(int b)
     {
-        this->born = born;
+        if (b >= 1990 && b <= 2020 )
+            born = b;
+        else
+            std::cerr << "The input b is " << b << ", and should be in [1990, 2020]." << std::endl;
     }
     int getBorn() const
     {

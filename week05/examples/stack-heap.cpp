@@ -15,6 +15,10 @@ int main()
     int * p2 = (int*) malloc (4);
     int * p3 = (int*) malloc (4);
 
+    cout << &p1 << endl;
+    cout << &p2 << endl;
+    cout << &p3 << endl;
+    
     cout << p1 << endl;
     cout << p2 << endl;
     cout << p3 << endl;

@@ -7,7 +7,7 @@ class Person
   public:
     string name;
     Person(string n): name(n){}
-    virtual void print()
+    void print()
     {
         cout << "Name: " << name << endl;
     }

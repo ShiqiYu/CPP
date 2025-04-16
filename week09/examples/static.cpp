@@ -39,11 +39,21 @@ class Student
 
     void setName(const char * s)
     {
-        strncpy(name, s, 1024);
+        if (s == NULL)
+        {
+            std::cerr << "The input is NULL." << std::endl;
+            return;
+        }
+        size_t len = 1024 - 1;
+        strncpy(name, s, len);
+        name[len] = '\0';        
     }
     void setBorn(int b)
     {
-        born = b;
+        if (b >= 1990 && b <= 2020 )
+            born = b;
+        else
+            std::cerr << "The input b is " << b << ", and should be in [1990, 2020]." << std::endl;
     }
     static size_t getTotal() {return student_total;}
     // the declarations, the definitions are out of the class
@@ -62,7 +72,7 @@ void Student::printInfo()
     std::cout << "Gender: " << (male ? "Male" : "Female") << std::endl;
 }
 
-//size_t Student::student_total = 0; // definition it here
+size_t Student::student_total = 0; // definition it here
 
 int main()
 {
@@ -78,7 +88,7 @@ int main()
 
     Student yu("Yu", 2000, true);
 
-    cout << "---We have " << Student::getTotal() << " students---" << endl;
+    cout << "---We have " << yu.getTotal() << " students---" << endl;
 
     class1[1].printInfo();
     delete []class1;

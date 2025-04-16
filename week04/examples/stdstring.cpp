@@ -14,5 +14,7 @@ int main()
 
     cout << "str1 < str2 is " << (str1 < str2) << endl;
 
+    cout << "str1[100] = (" << str1[100] << ")" << endl;
+
     return 0;
 }

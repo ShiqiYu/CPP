@@ -3,8 +3,8 @@
 
 struct Matrix
 {
-    int rows;
-    int cols;
+    size_t rows;
+    size_t cols;
     float * pData;
 };
 
@@ -28,8 +28,8 @@ int main()
     float maxc = FLT_MIN;
 
     //find max value of matA
-    for(int r = 0; r < matA.rows; r++)
-        for (int c = 0; c < matA.cols; c++)
+    for(size_t r = 0; r < matA.rows; r++)
+        for (size_t c = 0; c < matA.cols; c++)
         {
             float val = matA.pData[ r * matA.cols + c];
             maxa = ( maxa > val ? maxa : val);
