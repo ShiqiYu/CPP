@@ -51,14 +51,14 @@ int main()
         delete p; //if its destructor is not virtual
     }
 
-    { //if you want to call a function in the base class
-        Student stu("li", "2021");
-        stu.Person::print();
+    // { //if you want to call a function in the base class
+    //     Student stu("li", "2021");
+    //     stu.Person::print();
 
-        Person * p = new Student("xue", "2020");
-        p->Person::print(); 
-        delete p; 
-    }
+    //     Person * p = new Student("xue", "2020");
+    //     p->Person::print(); 
+    //     delete p; 
+    // }
 
     return 0;
 }
