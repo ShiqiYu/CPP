@@ -3,18 +3,17 @@ using namespace std;
 
 int main()
 {
-    bool isPositive = true;
-    int factor = 0;
-    //some operations may change isPositive's value
-    if(isPositive)
-        factor = 1;
-    else
-        factor = -1;
-    //the if-else statement can be replaced by a ternary conditional operation
-    factor = isPositive ? 1 : -1;
+    // to understand ternary operator
 
-    //sometimes the following code can be more efficient.
-    factor = isPositive * 2 - 1;
+    int a,b;
+    cout<<"This code will help you to understand ternary operator better"<<endl;
+    cout<<"Enter first number: ";
+    cin>>a;
+    cout<<"Enter second number: ";
+    cin>>b;
 
+    //ternary operator
+    int max = a>b?a:b;
+    cout<<"The greater number is: "<<max;
     return 0;
 }
