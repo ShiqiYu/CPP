@@ -2,13 +2,15 @@
 using namespace std;
 int main()
 {
-    int sum = 0;
-    for(int i = 0; i < 10; i++)
+    long long sum = 0;
+    long num;
+    cout<<"Enter any positive number: ";
+    cin>>num;
+    for(int i = 1; i <= num; i++)
     {
         sum += i;
-        cout << "Line " << i << endl;
     }
-    cout << "sum = "  << sum << endl;
+    cout << "sum of all numbers till "  <<num<<" is: "<< sum << endl;
 
     return 0;
 }
