@@ -18,7 +18,7 @@ This line is to declare and initialize a variable.
 int n = 10; //declare and initialize
 ```
 
-The following line looks very similar to the previous one. But the operations are different. But no initialization is in it. The first line is declaring a variable, and the second is assigning a value. Assignment is a different operation from initialization. The two pieces of source code are equivalent. They both declare a variable, and then its value is `10`. But if the data type is not a fundamental type (`int`, `float`, etc) and is a compound type (such as a `class` type), the two operations, initialization and assignment, may have different behaviors. The reason is that the operations in an initialization function may be different from those in an assignment function. You can get related information in the operator overloading part of this book.
+The following line looks very similar to the previous one. But the operations are different. No initialization is in it. The first line is declaring a variable, and the second is assigning a value. Assignment is a different operation from initialization. The two pieces of source code are equivalent. They both declare a variable, and then its value is `10`. But if the data type is not a fundamental type (`int`, `float`, etc) and is a compound type (such as a `class` type), the two operations, initialization and assignment, may have different behaviors. The reason is that the operations in an initialization function may be different from those in an assignment function. You can get related information in the operator overloading part of this book.
 
 ```cpp
 int n; //declare a variable, its value may be a random one
@@ -139,7 +139,7 @@ The data widths of different integers are listed in the following table. For mor
 
 ### Signed and Unsigned Integers
 
-`signed` or `unsigned` can be used before the integer type names to indicate if the integer is a signed one or unsigned one. When the integer is a signed one, the keyword `signed` can be omitted. It means `int` is for `signed int`, and `short` is for `signed short`. But there is an exception. `char` is not always for `signed char`, and it is `unsigned char` on some platforms. I strongly suggest always using `signed char`` or `unsigned char`, and not using `char`.
+`signed` or `unsigned` can be used before the integer type names to indicate if the integer is a signed one or unsigned one. When the integer is a signed one, the keyword `signed` can be omitted. It means `int` is for `signed int`, and `short` is for `signed short`. But there is an exception. `char` is not always for `signed char`, and it is `unsigned char` on some platforms. I strongly suggest always using `signed char` or `unsigned char`, and not using `char`.
 
 If the integer is a signed one, the highest bit (the 32nd bit for `int`) will be its sign bit. It is a negative number if the sign bit is 1, and a positive number if it is 0. The signed int and unsigned int are shown in the following figure.
 
@@ -259,6 +259,7 @@ Before introducing floating-point numbers, I would like to introduce the followi
 
 ```cpp
 //float.cpp
+#include <iostream>
 #include <iomanip>
 using namespace std;
 int main()
@@ -410,7 +411,7 @@ The arithmetric operators are listed in the following table.
 | bitwise left shift  | `a << b` |
 | bitwise right shift | `a >> b` |
 
-The operators and their operants can be connected together to create an expression. Some are simple ones such as `a + b`, and some may be long ones with multiple operators such as `a + b * c / (e + f)`. The expression can be assigned to a variable.
+The operators and their operands can be connected together to create an expression. Some are simple ones such as `a + b`, and some may be long ones with multiple operators such as `a + b * c / (e + f)`. The expression can be assigned to a variable.
 
 ```cpp
 int result = a + b * c / (e + f);
@@ -454,7 +455,7 @@ The following code may also be easy to mislead us. Since `17` and `5` are all `i
 float float_num = 17 / 5; // f = 3.0f, not 3.4f.
 ```
 
-When we convert numbers according to the direction from `char` -> `short` -> `int` -> `long` -> `float` -> `double` -> `long double`, normally there is not data loss. But if the conversion is in the opposite direction from `long double` to `char`, it will cause data loss and compilers will warn you most of the time. But it is not always true. Some big integer numbers in `int` may loss precision when they are converted to `float` as shown in the following code.
+When we convert numbers according to the direction from `char` -> `short` -> `int` -> `long` -> `float` -> `double` -> `long double`, normally there is not data loss. But if the conversion is in the opposite direction from `long double` to `char`, it will cause data loss and compilers will warn you most of the time. But it is not always true. Some big integer numbers in `int` may lose precision when they are converted to `float` as shown in the following code.
 
 ```cpp
 int num_int1 = 100000004;
