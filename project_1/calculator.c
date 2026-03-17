@@ -503,6 +503,61 @@ void run_interactive_mode() {
  * @param expr 待计算的表达式字符串（格式：\"num1 op num2\"）
  * @return 包含计算结果或错误信息的 CalcResult 结构体
  */
+// 工具 1：提取整数部分并计算小数位数
+void extract_decimal(const char *input, char *out_str, int *scale) {
+    char *dot = strchr(input, '.');
+    if (!dot) {
+        strcpy(out_str, input);
+        *scale = 0;
+    } else {
+        int int_len = dot - input;
+        strncpy(out_str, input, int_len);
+        out_str[int_len] = '\0';
+        strcat(out_str, dot + 1);
+        *scale = strlen(dot + 1);
+    }
+}
+
+// 工具 2：在结果字符串倒数第 N 位插入小数点
+void insert_decimal(char *str, int scale) {
+    if (scale <= 0) return;
+    
+    int len = strlen(str);
+    int is_negative = (str[0] == '-');
+    int num_len = is_negative ? len - 1 : len;
+    
+    // 安全检查，防止大 scale 溢出
+    if (scale > MAX_INPUT_LEN) return;
+
+    char temp[MAX_INPUT_LEN * 2] = {0};
+    int temp_idx = 0;
+    
+    if (is_negative) temp[temp_idx++] = '-';
+    
+    if (num_len <= scale) {
+        temp[temp_idx++] = '0';
+        temp[temp_idx++] = '.';
+        for (int i = 0; i < scale - num_len; i++) {
+            temp[temp_idx++] = '0';
+        }
+        strcpy(temp + temp_idx, str + (is_negative ? 1 : 0));
+    } else {
+        int insert_pos = len - scale;
+        strncpy(temp, str, insert_pos);
+        temp[insert_pos] = '.';
+        strcpy(temp + insert_pos + 1, str + insert_pos);
+    }
+    
+    if (strchr(temp, '.')) {
+        int final_len = strlen(temp);
+        while (final_len > 0 && temp[final_len - 1] == '0') final_len--;
+        if (final_len > 0 && temp[final_len - 1] == '.') final_len--;
+        temp[final_len] = '\0';
+    }
+    
+    strcpy(str, temp);
+}
+
 CalcResult evaluate_expression(const char *expr) {
     CalcResult res;
     strcpy(res.result, "");  // 初始化空字符串
@@ -518,24 +573,36 @@ CalcResult evaluate_expression(const char *expr) {
         return res;
     }
 
-    // 2. 执行 BigInt 计算
-    switch (op) {
-        case '+':
-            bigint_add(num1, num2, res.result);
-            break;
-        case '-':
-            bigint_sub(num1, num2, res.result);
-            break;
-        case '*':
-            bigint_mul(num1, num2, res.result);
-            break;
-        case '/':
-            // // bigint_div 的最后一个参数是 ErrorCode 指针，会在内部判断除以零
-            bigint_div(num1, num2, res.result, 6, &res.err);
-            break;
-        default:
-            res.err = ERR_UNSUPPORTED_OP;
-            strcpy(res.result, "");
+    // 2. 剥离小数点并准备参数
+    char int1[MAX_INPUT_LEN * 2], int2[MAX_INPUT_LEN * 2];
+    int scale1, scale2;
+    extract_decimal(num1, int1, &scale1);
+    extract_decimal(num2, int2, &scale2);
+
+    // 3. 执行包含小数逻辑的运算
+    if (op == '+' || op == '-') {
+        int max_scale = (scale1 > scale2) ? scale1 : scale2;
+        while (scale1 < max_scale) { strcat(int1, "0"); scale1++; }
+        while (scale2 < max_scale) { strcat(int2, "0"); scale2++; }
+        
+        if (op == '+') bigint_add(int1, int2, res.result);
+        else bigint_sub(int1, int2, res.result);
+        
+        insert_decimal(res.result, max_scale);
+        
+    } else if (op == '*') {
+        bigint_mul(int1, int2, res.result);
+        insert_decimal(res.result, scale1 + scale2);
+        
+    } else if (op == '/') {
+        int max_scale = (scale1 > scale2) ? scale1 : scale2;
+        while (scale1 < max_scale) { strcat(int1, "0"); scale1++; }
+        while (scale2 < max_scale) { strcat(int2, "0"); scale2++; }
+        
+        // 传入你期望保留的小数精度，比如 6 位
+        bigint_div(int1, int2, res.result, 6, &res.err); 
+    } else {
+        res.err = ERR_UNSUPPORTED_OP;
     }
 
     return res;
@@ -566,10 +633,10 @@ bool parse_basic_expression(const char *expr, char *num1, char *op, char *num2) 
         expr++;
     }
     
-    // 检查是否有数字部分
-    if (!isdigit(*expr)) return false;
+    // 检查是否有数字部分（允许小数点）
+    if (!isdigit(*expr) && *expr != '.') return false;
     
-    while (isdigit(*expr)) {
+    while (isdigit(*expr) || *expr == '.') {
         num1[num1_len++] = *expr++;
     }
     num1[num1_len] = '\0';
@@ -595,10 +662,10 @@ bool parse_basic_expression(const char *expr, char *num1, char *op, char *num2) 
         expr++;
     }
     
-    // 检查是否有数字部分
-    if (!isdigit(*expr)) return false;
+    // 检查是否有数字部分（允许小数点）
+    if (!isdigit(*expr) && *expr != '.') return false;
     
-    while (isdigit(*expr)) {
+    while (isdigit(*expr) || *expr == '.') {
         num2[num2_len++] = *expr++;
     }
     num2[num2_len] = '\0';
