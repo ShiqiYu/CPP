@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <errno.h>
 
 /* ============================================================
  * 1. 宏定义与结构体
@@ -29,9 +30,9 @@ typedef struct {
  * 2. 函数声明
  * ============================================================ */
 
-void run_interactive_mode();                                    // 交互模式入口
-void run_cli_mode(int argc, char *argv[]);                      // 命令行模式入口
-CalcResult evaluate_expression(const char *expr);               // 表达式计算核心
+void run_interactive_mode(int precision);                                    // 交互模式入口
+void run_cli_mode(int argc, char *argv[], int precision);                      // 命令行模式入口
+CalcResult evaluate_expression(const char *expr, int precision);               // 表达式计算核心
 void print_result(const char *expr, CalcResult res);            // 结果输出和错误处理
 bool parse_basic_expression(const char *expr, char *num1, char *op, char *num2);  // 基础表达式解析（支持大数字符串）
 
@@ -425,12 +426,39 @@ void bigint_div(const char *num1, const char *num2, char *result, int precision,
  * - 无参数：交互模式，持续接收用户输入
  */
 int main(int argc, char *argv[]) {
-    if (argc > 1) {
-        // 有命令行参数，进入命令行模式
-        run_cli_mode(argc, argv);
+    int precision = 6; // 默认精度
+    int arg_idx = 1;
+
+    // 解析 -p 或 --precision 选项
+    if (argc >= 3 && (strcmp(argv[1], "-p") == 0 || strcmp(argv[1], "--precision") == 0)) {
+        char *endptr;
+        errno = 0;
+        long p = strtol(argv[2], &endptr, 10);
+        
+        // 检查输入是否完全是数字，以及是否发生溢出
+        if (errno == ERANGE || *endptr != '\0' || p < 0) {
+            fprintf(stderr, "Error: Invalid precision value. It must be a non-negative integer.\n");
+            return 1;
+        }
+        
+        // 限制最大精度，避免内部数组 current_rem 等溢出MAX_INPUT_LEN
+        // 当前大数除法计算缓冲区容量是 MAX_INPUT_LEN * 2 (即 2048)
+        // 留出一定空间给初始数字和除法逻辑
+        if (p > MAX_INPUT_LEN) {
+            fprintf(stderr, "Error: Precision too large. Maximum allowed is %d.\n", MAX_INPUT_LEN);
+            return 1;
+        }
+        
+        precision = (int)p;
+        arg_idx = 3;
+    }
+
+    if (arg_idx < argc) {
+        // 有表达式参数，进入命令行模式
+        run_cli_mode(argc - arg_idx, argv + arg_idx, precision);
     } else {
-        // 无参数，进入交互模式
-        run_interactive_mode();
+        // 无表达式参数，进入交互模式
+        run_interactive_mode(precision);
     }
     return 0;
 }
@@ -441,19 +469,20 @@ int main(int argc, char *argv[]) {
  * 
  * @param argc 命令行参数个数
  * @param argv 命令行参数数组
+ * @param precision 保留的小数位数
  */
-void run_cli_mode(int argc, char *argv[]) {
+void run_cli_mode(int argc, char *argv[], int precision) {
     char expr[MAX_INPUT_LEN] = {0};
     
     // 将所有参数拼接成一个完整的表达式字符串
-    for (int i = 1; i < argc; ++i) {
+    for (int i = 0; i < argc; ++i) {
         strncat(expr, argv[i], MAX_INPUT_LEN - strlen(expr) - 1);
         if (i < argc - 1) {
             strncat(expr, " ", MAX_INPUT_LEN - strlen(expr) - 1);
         }
     }
 
-    CalcResult res = evaluate_expression(expr);
+    CalcResult res = evaluate_expression(expr, precision);
     print_result(expr, res);
 }
 
@@ -461,7 +490,7 @@ void run_cli_mode(int argc, char *argv[]) {
  * 交互模式实现
  * 持续接收用户输入，逐行计算并输出结果，直到用户输入 "quit" 或 EOF
  */
-void run_interactive_mode() {
+void run_interactive_mode(int precision) {
     char input[MAX_INPUT_LEN];
 
     while (1) {
@@ -477,11 +506,34 @@ void run_interactive_mode() {
         if (strcmp(input, "quit") == 0) {
             break;
         }
+
+        // 检查修改精度的指令: 支持 "-p <n>"
+        if (strncmp(input, "-p ", 3) == 0) {
+            
+            const char *num_part = input + 3;
+            
+            char *endptr;
+            errno = 0;
+            long p = strtol(num_part, &endptr, 10);
+            
+            // 跳过可能跟随的空格
+            while (*endptr != '\0' && isspace(*endptr)) endptr++;
+            
+            if (errno == ERANGE || *endptr != '\0' || p < 0) {
+                printf("Error: Invalid precision value. It must be a non-negative integer.\n");
+            } else if (p > MAX_INPUT_LEN) {
+                printf("Error: Precision too large. Maximum allowed is %d.\n", MAX_INPUT_LEN);
+            } else {
+                precision = (int)p;
+                printf("Precision set to %d\n", precision);
+            }
+            continue;
+        }
         
         // 忽略空输入
         if (strlen(input) == 0) continue;
 
-        CalcResult res = evaluate_expression(input);
+        CalcResult res = evaluate_expression(input, precision);
         
         // 交互模式下通常只输出结果或错误
         if (res.err == SUCCESS) {
@@ -559,7 +611,7 @@ void insert_decimal(char *str, int scale) {
     strcpy(str, temp);
 }
 
-CalcResult evaluate_expression(const char *expr) {
+CalcResult evaluate_expression(const char *expr, int precision) {
     CalcResult res;
     strcpy(res.result, "");  // 初始化空字符串
     res.err = SUCCESS;
@@ -600,8 +652,8 @@ CalcResult evaluate_expression(const char *expr) {
         while (scale1 < max_scale) { strcat(int1, "0"); scale1++; }
         while (scale2 < max_scale) { strcat(int2, "0"); scale2++; }
         
-        // 传入你期望保留的小数精度，比如 6 位
-        bigint_div(int1, int2, res.result, 6, &res.err); 
+        // 传入指定的精度
+        bigint_div(int1, int2, res.result, precision, &res.err); 
     } else {
         res.err = ERR_UNSUPPORTED_OP;
     }
