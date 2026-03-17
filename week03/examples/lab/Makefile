@@ -38,9 +38,30 @@
 # 	rm -f *.o $(TARGET)
 
 
-## VERSION 4
+# ## VERSION 4
+# CXX = g++
+# TARGET = hello
+# SRC = $(wildcard *.cpp)
+# OBJ = $(patsubst %.cpp, %.o, $(SRC))
+
+# CXXFLAGS = -c -Wall
+
+# $(TARGET): $(OBJ)
+# 	$(CXX) -o $@ $^
+
+# %.o: %.cpp
+# 	$(CXX) $(CXXFLAGS) $< -o $@
+
+# .PHONY: clean
+# clean:
+# 	rm -f *.o $(TARGET)
+
+
+
+
+
 CXX = g++
-TARGET = hello
+TARGET = b
 SRC = $(wildcard *.cpp)
 OBJ = $(patsubst %.cpp, %.o, $(SRC))
 
