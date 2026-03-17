@@ -508,6 +508,7 @@ void extract_decimal(const char *input, char *out_str, int *scale) {
     char *dot = strchr(input, '.');
     if (!dot) {
         strcpy(out_str, input);
+        
         *scale = 0;
     } else {
         int int_len = dot - input;
