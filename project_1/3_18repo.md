@@ -1,188 +1,122 @@
-# Simple Calculator using C
+# 3月18日上午进度总结
 
-本文档主要详解如何为计算器增加**小数计算（decimal）**的功能，以及如何让用户**手动指定保留精度（manual precision）**。我们将逐行拆解这部分的修改代码，一步步讲解给 C 语言新手听。
+## 1. 核心目标与完成情况
+今天上午主要为大数计算器完善了三个重要的功能：
+1. **除法四舍五入（Half-up）**：让除法在保留指定小数位时，能够像我们手算一样“满5进1”。
+2. **支持科学计数法输入**：比如允许用户输入 `12e3` 或者 `1.23e-4`。
+3. **统一固定精度输出**：只要设定了保留几位小数，不管是加减乘除，最后输出都会“对齐”，不够的补0，多余的四舍五入。
 
-## 1. Basic function (基础功能扩展)
+这三个功能都围绕着“让计算器的数字处理更加严谨、输出更整洁”这个目标。
 
-### 1.4 decimal (小数提取与组装)
-因为我们用的是纯字符数组来实现的超大数计算（BigInt），它天然只认识加减乘除里的数字（不认识小数点）。要让程序支持浮点数，我们的思路是：**先拔掉小数点！**，假装它是个超大的整数去底层算，算完拿到整数形态的结果后，再**重新把小数点插回去！**
+---
 
-为此，我们需要两个工具函数。
+## 2. 修改细节与新手讲解
 
-**提取小数点 `extract_decimal`:**
+### 2.1 除法四舍五入的实现
+**目的**：以前的计算器可能截断小数，比如算到 `0.5` 但精度设置为0时直接变成 `0`。现在我们希望它变成 `1`。
+**思路**：最稳妥的策略是“多算一位”。如果我们需要保留 `n` 位小数，那就先算出 `n+1` 位。看看第 `n+1` 位是不是 `>= 5`。如果是，就在第 `n` 位上加 1（也就是进位）。如果产生连锁进位（比如 `0.99` 加 `0.01` 变成 `1.00`），再把这个进位传导到整数部分。
+
+**修改的代码片段 (`calculator.c`)**:
+*注意：这部分代码位于 `bigint_div` 中。它抽取出了 `div_step` 函数来按步就算当前位，然后多算一位获取 `round_digit`。*
 ```c
-// out_str 是负责接盘纯数字串的盒子，scale 是负责记住小数点后面有几位的变量
-void extract_decimal(const char *input, char *out_str, int *scale) {
-    // 语法：strchr 用于在字符串(input)中找字符(.)首次出现的位置。找不到就返回 NULL(即0)
-    char *dot = strchr(input, '.');
-    if (!dot) { 
-        // 如果没找到小数点，那这就直接是一个整数
-        strcpy(out_str, input); // 原封不动搬运过去
-        *scale = 0; // 小数位数为 0
+// 伪代码展示四舍五入逻辑（对应实际中的 increment_result_integer 和 bigint_div）
+if (precision > 0) {
+    int round_digit = 0;
+    // ... 前面已经算出了 precision 位小数 ...
+    
+    // 多算1位用于判断是否进位
+    if (strcmp(current_rem, "0") != 0) {
+        round_digit = div_step(...); 
+    }
+    
+    // 进位规则 (half-up)
+    if (round_digit >= 5) {
+        int carry = 1;
+        // 把最后一位小数往前加
+        for (int i = wrote - 1; i >= 0 && carry; i--) {
+            if (frac[i] < '9') { frac[i]++; carry = 0; }
+            else { frac[i] = '0'; }
+        }
+        // 如果小数全变成0说明进位溢出到了整数部分
+        if (carry) {
+            increment_result_integer(result, MAX_BIGINT_LEN);
+        }
+    }
+} else if (precision == 0 && strcmp(current_rem, "0") != 0) {
+    // 精度为0的整数进位机制
+    int d = div_step(...);
+    if (d >= 5) increment_result_integer(result, MAX_BIGINT_LEN);
+}
+```
+
+### 2.2 科学计数法输入的处理
+**目的**：让用户可以输入 `1.2e3` 代替 `1200`，或者 `1e-3` 代替 `0.001`，提升输入便利性。
+**思路**：为了不破坏你现在写好的加减乘除底层逻辑（底层只会算普通的数字符串），我们可以在**最开始读取输入（解析阶段）**，就把科学计数法**展开**成普通的数字。
+例如，读到 `1.2e3`，我们知道 `1.2` 小数点后有1位，乘以 `10^3` 相当于给小数点向右移 3 位。因为 `1 - 3 = -2`，说明要在 `12` 后面补 2 个 `0`，展开成 `1200`。算好这笔账（`scale = frac_len - exp`），再用普通数字串传给大数计算逻辑，底层代码完全不用改。
+
+**修改的代码片段 (`calculator.c`)**:
+```c
+// 新增的 parse_number_token 负责读取数字+科学计数法并展开
+// 将 e/E 的输入转换成普通十进制
+if (*cur == 'e' || *cur == 'E') {
+    cur++;
+    // 处理指数符号和数字...
+    long exp = ...; // 例如 3 或 -2
+    
+    // scale = 原小数位数 - 指数
+    long scale = frac_len - exp;
+    
+    // 展开字符串...
+    if (scale <= 0) {
+        // 小数点右移或补零（如 1.2e3 变成 1200）
     } else {
-        // 如果找到了！比如 "123.45"，指针dot就停在 '.' 的位置
-        int int_len = dot - input;     // 两个指针相减，绝妙地算出了前面整数部分的长度 (即"123"的长度，3)
-        
-        // 提走整数部分
-        // strncpy 拷贝前 n 个字符。拷贝完了别忘了手动在结尾加个 '\0' 封口，否则电脑不知道字符串在哪结束！
-        strncpy(out_str, input, int_len);
-        out_str[int_len] = '\0';
-        
-        // 提走小数部分，紧紧粘在刚刚提出来的整数后面
-        strcat(out_str, dot + 1);      // 把小数点后面的字符("45")串联在out_str末尾。结果变成了 "12345"
-        
-        // 记住小数刻度位数
-        *scale = strlen(dot + 1);      // 测量一下小数点后面("45")有多长，存入scale(记录为2)
+        // 小数点左移，可能会在前面插入零（如 123e-5 变成 0.00123）
     }
 }
 ```
 
-**插入回小数点 `insert_decimal`:**
-```c
-// str 是刚刚从BigInt计算出来的纯整数结果(如 "333")，scale是应该还原的小数位数(如 2)
-void insert_decimal(char *str, int scale) {
-    if (scale <= 0) return; // 没有小数刻度就不用干活
-    
-    int len = strlen(str); // 看看现在的数字有几位长 (3)
-    int is_negative = (str[0] == '-'); // 第一位如果是减号，标记为负数
-    int num_len = is_negative ? len - 1 : len; // 如果是负数，实际纯数字长度要减掉负号占的1个坑位
-    
-    if (scale > MAX_INPUT_LEN) return; // 保护机制：如果要求的精度太离谱(比如要点在几万位后)，坚决不干！
+### 2.3 统一固定精度输出
+**目的**：无论做了何种计算运算，如果设定了精度 `-p 2`，希望输出必须是 `xx.00` 格式对齐的，不省略尾随零。
+**思路**：之前程序里有“去掉多余0”的代码，比如输入 `1.50` 会变成 `1.5`。既然现在我们要固定长度输出，这里就会发生矛盾（先去零，又得补零，逻辑重复）。因此，我们删掉原来的“去除末尾0”逻辑。在整个四则运算成功结束后，统一调用格式化函数 `format_fixed_precision`：
+1. 先看它够不够 precision 位数，不够的在末尾补 `0` 补齐；
+2. 如果有多余尾数则进行前面提到的四舍五入。
+由于放到最后一步做截断/补齐，前面各种 `+-*/` 都是保持了最高精度在运算。
 
-    char temp[MAX_INPUT_LEN * 2] = {0}; // 准备一个新本子(空数组)来写插入小数点后的模样
-    int temp_idx = 0; // 这个变量记录我们正在本子的哪个位置下笔
-    
-    if (is_negative) temp[temp_idx++] = '-'; // 如果原本有负号，最前面咱们先把负号补在开头
-    
-    if (num_len <= scale) { 
-        // 情景1：数字总长度都没小数位数多 (比如算出了 333，但要求小数点在后边4位)
-        // 那就是说明这是个零点几的小数，我们得在前面补零："0.0333"
-        temp[temp_idx++] = '0'; // 补上最初的那个零 "0"
-        temp[temp_idx++] = '.'; // 补上点       "0."
-        for (int i = 0; i < scale - num_len; i++) {
-            temp[temp_idx++] = '0'; // 中间差了几位补几个零 "0.0"
-        }
-        strcpy(temp + temp_idx, str + (is_negative ? 1 : 0)); // 最后把原本的"333"搬过来
-    } else {
-        // 情景2：正常数字 (算出了"12345"，小数位是2位，变成"123.45")
-        int insert_pos = len - scale;  // 从开头数，第几位该下笔写小数点 (5-2=3，即在位置3下笔)
-        strncpy(temp, str, insert_pos); // 先把前面的"123"抄下来
-        temp[insert_pos] = '.';         // 在空出来的位置填上小数点
-        strcpy(temp + insert_pos + 1, str + insert_pos); // 再把剩下的"45"续在点号后面
-    }
-    
-    // 扫除尾部没用的0 (比如算完了是 "123.4500" 需要整理为 "123.45")
-    if (strchr(temp, '.')) { 
-        int final_len = strlen(temp);
-        while (final_len > 0 && temp[final_len - 1] == '0') final_len--; // 从最后往前看，全是0就砍掉长度
-        if (final_len > 0 && temp[final_len - 1] == '.') final_len--; // 如果0砍完了露出来个孤单的 ".", 一并砍了 ("123." 变 "123")
-        temp[final_len] = '\0'; // 宣告新字符串在这个截断的尾部结束
-    }
-    
-    strcpy(str, temp); // 把在草稿纸(temp)上完全画好的新样子，一把盖回原来的 str 里。
+**修改的代码片段 (`calculator.c`)**:
+这里修改了 `main` 以及命令行/交互模式相关函数来接收精度参数：
+```c
+// 1. main 函数中增加了对精度的解析
+int precision = 6; // 默认精度
+if (argc >= 3 && (strcmp(argv[1], "-p") == 0 || strcmp(argv[1], "--precision") == 0)) {
+    // 提取并设置 precision
+    precision = (int)p;
 }
-```
 
-### 1.6 manual precision (手动调整除法精度)
-除法是个非常特殊的家伙，因为比如 10 / 3 是除不尽的。它需要人告诉它，到底往后推算几位就停手。
-
-为了让用户能自己传参数告诉我们想要几位精度（如 `-p 2` 只要留两位），我们要在 `main` 函数以及交互模式里搞起“拦截过滤”。
-
-**在 `main` 里识别启动参数:**
-```c
-int main(int argc, char *argv[]) {
-    int precision = 6;  // 我们给个默认精度兜底，这叫防呆设计，就算他不输我们也有个准头。
-    int arg_idx = 1;    // 默认从第一个参数开始就是数学表达式
-
-    // 检查：如果参数起码有3个起步 (如 ./calc -p 2，这就有程序名+选项+数字 共三个了) 
-    // 而且第二个参数确定就是 "-p" 或者 "--precision"
-    if (argc >= 3 && (strcmp(argv[1], "-p") == 0 || strcmp(argv[1], "--precision") == 0)) {
-        
-        char *endptr; // 这个指针，等下 strtol 把数字抠到哪断了，它就指在哪。用来查错极其好用。
-        errno = 0;    // 系统错误码。开干前先清零。
-        
-        // strtol是把字符串转成long整形。它比atoi强在它非常严谨
-        // argv[2] 就是紧跟着的那个数字字符串，比如 "4"
-        long p = strtol(argv[2], &endptr, 10); // "10"的意思是用10进制理解数字
-        
-        // 开始三连发灵魂拷问 (查错):
-        // 1. errno == ERANGE: 卧槽你输入的是不是超级大，直接爆内存上限了？
-        // 2. *endptr != '\0': 指针抠完数字发现停在半道了(比如你输入的是 "2abc" 或者 "2 !")，你输入的根本不纯净！
-        // 3. p < 0: 精确的位数怎么可能是负数？
-        if (errno == ERANGE || *endptr != '\0' || p < 0) {
-            fprintf(stderr, "Error: Invalid precision value. It must be a non-negative integer.\n");
-            return 1; // 一旦发现用户瞎搞，果断报错退出，保护程序
-        }
-        
-        // 再次严防死守: 你的精度合法，但你要求算几万位，我内部数组(MAX_INPUT_LEN)可装不下啊！
-        if (p > MAX_INPUT_LEN) {
-            fprintf(stderr, "Error: Precision too large. Maximum allowed is %d.\n", MAX_INPUT_LEN);
-            return 1;
-        }
-        
-        precision = (int)p; // 历经九九八十一难，终于把纯洁合法的设定赋值了！
-        arg_idx = 3; // 因为第1和第2个参数是 "-p" 和 "数字"，被我们处理掉了，所以真正的数字算式得从第3处(引脚3)开始找！
-    }
-    
-    // ... 然后把提取出的 precision 一路当作参数传递给 run_cli_mode 还是 evaluate_expression 即可。
-```
-
-**在交互模式中的中途拦截修改:**
-交互模式是不退出的瞎敲模式，我们要能识别出用户打进来的设定指令。
-
-```c
-void run_interactive_mode(int precision) {
-    char input[MAX_INPUT_LEN];
-
-    while (1) {
-        printf("> ");
-        if (fgets(input, sizeof(input), stdin) == NULL) break;
-        input[strcspn(input, "\n")] = 0; 
-        
-        // // // 重点来了 // // // 
-        // 刚刚截获了一行用户的输入 (放在了 input 变量里)，接下来去查有没有指令
-        
-        // strncmp 会比较前 n 个字符。如果是 "-p " 恰好匹配上了：
-        if (strncmp(input, "-p ", 3) == 0) {
-            
-            // 指针跳过前面的 "-p "，直指后面的数字部分。比如 "-p 4" 中的 "4"
-            const char *num_part = input + 3;
-            
-            char *endptr;
-            errno = 0;
-            // 还是同一款神器：把那串数字字符串转换成实打实的整数
-            long p = strtol(num_part, &endptr, 10);
-            
-            // 跳过可能跟随的空格 (比如有些人粗心打成了 "-p 4   ")
-            while (*endptr != '\0' && isspace(*endptr)) endptr++;
-            
-            // 老规矩安全检查
-            if (errno == ERANGE || *endptr != '\0' || p < 0) {
-                printf("Error: Invalid precision value. It must be a non-negative integer.\n");
-            } else if (p > MAX_INPUT_LEN) {
-                printf("Error: Precision too large. Maximum allowed is %d.\n", MAX_INPUT_LEN);
-            } else { // 如果完美无瑕疵！
-                precision = (int)p; // 让大局变量吃下这个新精度
-                printf("Precision set to %d\n", precision); // 报出喜讯
-            }
-            // 不要忘了！这只是为了调代码的指令，千万别傻傻地继续往下塞给数学公式去算 "-p 4"。
-            // 必须 continue！让循环立刻跳回开头，重新打印个 '> ' 回到待命状态。
-            continue;
-        }
-    }
-    // ... 后方照常是处理真正加减乘除计算的代码部分
+// 2. 交互模式增加了切换精度的指令
+if (strncmp(input, "-p ", 3) == 0) {
+    // 动态修改精度
+    precision = (int)p;
+    continue;
 }
-```
 
-最后一步，只消打开计算过程的心脏 `evaluate_expression` 就能起效了。
-```c
+// 3. 所有计算入口传递了 precision 参数
 CalcResult evaluate_expression(const char *expr, int precision) {
-    // 终于！在遇见除法的时候，我们不再把位数写死了。而是把那个千辛万苦历经风霜，受尽最严格考验的参数 precision 给喂了过去。
-    // 大数除法算盘，给我启动！
-    } else if (op == '/') {
-        // ... (对齐0的代码)
-        bigint_div(int1, int2, res.result, precision, &res.err); 
-    } 
+    // 运算完毕后...
+    // BIGINT_DIV 会用 precision：
+    bigint_div(int1, int2, res.result, precision, &res.err);
+    // 并且新增了统一格式化：
+    // 最后返回前会使用 format_fixed_precision 强行补 0 或四舍五入
+}
+
+// 4. 去掉了 insert_decimal 原有去掉末尾0的冲突逻辑
+// 之前的：
+// while (final_len > 0 && temp[final_len - 1] == '0') final_len--;
+// 现在只负责插入小数点，尾部是否填0交给最终步骤统一处理。
 ```
 
-至此，小数点提取、植回和小数精度设定的前后端整个流程完全被打通。
+## 3. 架构总结
+通过这三个功能的实现，我们梳理清楚了各个层的职责：
+* **输入解析层**：专门处理用户的各种便捷写法（比如科学计数法），统一向后翻译成基础十进制字符。
+* **大数运算核心**：心无旁骛，不管花里胡哨的输入输出，拿两串字符算加减乘除即可，提供最高的计算精度。
+* **输出展示层**：在这里进行**格式对齐和四舍五入**。这样无论算除法还是乘法甚至加减，最终呈现都受统一调度。
+这套“解耦”的逻辑非常利于之后扩展成基于AST（抽象语法树）的更复杂的计算器。

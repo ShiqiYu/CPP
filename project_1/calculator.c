@@ -9,7 +9,6 @@
  * 1. 宏定义与结构体
  * ============================================================ */
 
-#define MAX_INPUT_LEN 1024
 #define MAX_BIGINT_LEN 2048
 
 // 错误代码枚举：统一管理所有可能的错误类型
@@ -17,6 +16,7 @@ typedef enum {
     SUCCESS = 0,           // 计算成功
     ERR_DIV_BY_ZERO,       // 除数为零错误
     ERR_INVALID_INPUT,     // 输入格式无效
+    ERR_INPUT_TOO_LONG,    // 输入过长/缓冲区容量不足
     ERR_UNSUPPORTED_OP     // 不支持的运算符
 } ErrorCode;
 
@@ -34,7 +34,7 @@ void run_interactive_mode(int precision);                                    // 
 void run_cli_mode(int argc, char *argv[], int precision);                      // 命令行模式入口
 CalcResult evaluate_expression(const char *expr, int precision);               // 表达式计算核心
 void print_result(const char *expr, CalcResult res);            // 结果输出和错误处理
-bool parse_basic_expression(const char *expr, char *num1, char *op, char *num2);  // 基础表达式解析（支持大数字符串）
+ErrorCode parse_basic_expression(const char *expr, char *num1, char *op, char *num2);  // 基础表达式解析（支持大数字符串）
 
 // BigInt 大数运算库 - 函数声明
 void bigint_add(const char *num1, const char *num2, char *result);
@@ -59,6 +59,302 @@ void remove_leading_zeros(char *str);
 
 // 字符串反转：方便个位对齐计算（通常底层运算都会用到）
 void reverse_string(char *str);
+
+/* ============================================================
+ * 2.1 内部工具函数（固定缓冲区安全拼接/规范化）
+ * ============================================================ */
+
+static bool append_char(char *dst, size_t cap, char c) {
+    size_t len = strlen(dst);
+    if (len + 1 >= cap) return false;
+    dst[len] = c;
+    dst[len + 1] = '\0';
+    return true;
+}
+
+static bool append_zeros(char *dst, size_t cap, int count) {
+    if (count <= 0) return true;
+    size_t len = strlen(dst);
+    if (len + (size_t)count >= cap) return false;
+    memset(dst + len, '0', (size_t)count);
+    dst[len + (size_t)count] = '\0';
+    return true;
+}
+
+static bool is_ascii_digit(char c) {
+    return (c >= '0' && c <= '9');
+}
+
+static bool is_all_zeros_number(const char *s) {
+    if (*s == '-') s++;
+    bool has_digit = false;
+    while (*s) {
+        if (*s == '.') { s++; continue; }
+        if (*s >= '0' && *s <= '9') {
+            has_digit = true;
+            if (*s != '0') return false;
+            s++;
+            continue;
+        }
+        return false;
+    }
+    return has_digit;
+}
+
+// 前置声明：用于格式化与除法进位
+static bool increment_result_integer(char *result, size_t cap);
+
+// 严格解析数字，规则：最多一个点，且点两边都有数字
+static bool parse_number_strict(const char **p, char *out, size_t cap) {
+    size_t idx = 0;
+    int int_digits = 0;
+    int frac_digits = 0;
+
+    while (**p && is_ascii_digit(**p)) {
+        if (idx + 1 >= cap) return false;
+        out[idx++] = **p;
+        (*p)++;
+        int_digits++;
+    }
+    if (int_digits == 0) return false;
+
+    if (**p == '.') {
+        if (idx + 1 >= cap) return false;
+        out[idx++] = **p;
+        (*p)++;
+
+        while (**p && is_ascii_digit(**p)) {
+            if (idx + 1 >= cap) return false;
+            out[idx++] = **p;
+            (*p)++;
+            frac_digits++;
+        }
+        if (frac_digits == 0) return false;
+    }
+
+    out[idx] = '\0';
+    return true;
+}
+
+// 解析并展开科学计数法（方案 A：输入支持，输出不使用科学计数法）
+// 规则（严格一致）：
+// - mantissa 必须符合 parse_number_strict（digits 或 digits.digits，点两边都有数字）
+// - 可选指数部分： [e|E][+-]?digits（至少一位数字）
+// - token 内不允许空格
+// 输出：展开后的普通十进制字符串（可带 '-'、可带 '.'）
+static ErrorCode parse_number_token(const char **p, int is_negative, char *out, size_t cap) {
+    const char *cur = *p;
+
+    char mantissa[MAX_BIGINT_LEN];
+    if (!parse_number_strict(&cur, mantissa, sizeof(mantissa))) {
+        return ERR_INVALID_INPUT;
+    }
+
+    // 解析可选指数
+    long exp = 0;
+    int exp_sign = 1;
+    bool has_exp = false;
+
+    if (*cur == 'e' || *cur == 'E') {
+        has_exp = true;
+        cur++;
+        if (*cur == '+') { exp_sign = 1; cur++; }
+        else if (*cur == '-') { exp_sign = -1; cur++; }
+
+        if (!is_ascii_digit(*cur)) return ERR_INVALID_INPUT;
+
+        // 累积指数，并在超过上限时提前拒绝
+        while (is_ascii_digit(*cur)) {
+            int d = *cur - '0';
+            if (exp > (MAX_BIGINT_LEN - d) / 10) return ERR_INPUT_TOO_LONG;
+            exp = exp * 10 + d;
+            cur++;
+        }
+        exp *= exp_sign;
+
+        // 展开会导致补 0 非常多时，直接判为过长
+        if (exp > MAX_BIGINT_LEN || exp < -MAX_BIGINT_LEN) return ERR_INPUT_TOO_LONG;
+    }
+
+    // mantissa -> digits + frac_len
+    char digits[MAX_BIGINT_LEN];
+    int frac_len = 0;
+    size_t di = 0;
+    for (size_t i = 0; mantissa[i] != '\0'; i++) {
+        if (mantissa[i] == '.') continue;
+        if (di + 1 >= sizeof(digits)) return ERR_INPUT_TOO_LONG;
+        digits[di++] = mantissa[i];
+    }
+    digits[di] = '\0';
+
+    const char *dot = strchr(mantissa, '.');
+    if (dot) frac_len = (int)strlen(dot + 1);
+
+    // 如果 mantissa 全 0，结果就是 0（避免生成一堆 0）
+    if (is_all_zeros_number(mantissa)) {
+        if (cap < 2) return ERR_INPUT_TOO_LONG;
+        out[0] = '0';
+        out[1] = '\0';
+        *p = cur;
+        return SUCCESS;
+    }
+
+    long scale = (long)frac_len - (has_exp ? exp : 0); // 最终小数位数
+
+    char tmp[MAX_BIGINT_LEN];
+    tmp[0] = '\0';
+    if (is_negative) {
+        if (!append_char(tmp, sizeof(tmp), '-')) return ERR_INPUT_TOO_LONG;
+    }
+
+    // 生成展开后的普通十进制
+    size_t digits_len = strlen(digits);
+    if (scale <= 0) {
+        // 小数点右移：digits 后补 0
+        if (strlen(tmp) + digits_len + (size_t)(-scale) + 1 > sizeof(tmp)) return ERR_INPUT_TOO_LONG;
+        strncat(tmp, digits, sizeof(tmp) - strlen(tmp) - 1);
+        if (!append_zeros(tmp, sizeof(tmp), (int)(-scale))) return ERR_INPUT_TOO_LONG;
+    } else {
+        // 小数点左移：在 digits 倒数 scale 位插入
+        long pos = (long)digits_len - scale;
+        if (pos > 0) {
+            // 例如 12345, scale=2 => 123.45
+            if (strlen(tmp) + digits_len + 2 > sizeof(tmp)) return ERR_INPUT_TOO_LONG;
+            strncat(tmp, digits, (size_t)pos);
+            if (!append_char(tmp, sizeof(tmp), '.')) return ERR_INPUT_TOO_LONG;
+            strncat(tmp, digits + pos, sizeof(tmp) - strlen(tmp) - 1);
+        } else {
+            // 例如 123, scale=5 => 0.00123
+            if (!append_char(tmp, sizeof(tmp), '0')) return ERR_INPUT_TOO_LONG;
+            if (!append_char(tmp, sizeof(tmp), '.')) return ERR_INPUT_TOO_LONG;
+            if (!append_zeros(tmp, sizeof(tmp), (int)(-pos))) return ERR_INPUT_TOO_LONG;
+            if (strlen(tmp) + digits_len + 1 > sizeof(tmp)) return ERR_INPUT_TOO_LONG;
+            strncat(tmp, digits, sizeof(tmp) - strlen(tmp) - 1);
+        }
+    }
+
+    // 写回 out
+    size_t tlen = strlen(tmp);
+    if (tlen + 1 > cap) return ERR_INPUT_TOO_LONG;
+    memcpy(out, tmp, tlen + 1);
+
+    *p = cur;
+    return SUCCESS;
+}
+
+// 固定精度输出：四舍五入（half-up）到 precision 位，并补足尾随 0
+// 约定：precision >= 0；输入 s 是十进制字符串（可带 '-'、可带 '.'）
+static ErrorCode format_fixed_precision(char *s, size_t cap, int precision) {
+    if (precision < 0) return ERR_INVALID_INPUT;
+
+    // 全 0 直接归一
+    if (is_all_zeros_number(s)) {
+        if (precision == 0) {
+            if (cap < 2) return ERR_INPUT_TOO_LONG;
+            strcpy(s, "0");
+            return SUCCESS;
+        }
+        // "0." + precision 个 0
+        if (cap < (size_t)(2 + precision + 1)) return ERR_INPUT_TOO_LONG;
+        s[0] = '0';
+        s[1] = '.';
+        for (int i = 0; i < precision; i++) s[2 + i] = '0';
+        s[2 + precision] = '\0';
+        return SUCCESS;
+    }
+
+    int neg = (s[0] == '-');
+    char *p = s + (neg ? 1 : 0);
+
+    // 先去掉整数部分前导 0（不动小数尾 0）
+    char *dot = strchr(p, '.');
+    char *int_end = dot ? dot : (p + strlen(p));
+    while (p + 1 < int_end && *p == '0') {
+        memmove(p, p + 1, strlen(p + 1) + 1);
+        dot = strchr(p, '.');
+        int_end = dot ? dot : (p + strlen(p));
+    }
+
+    // 确保存在 '.'（当 precision > 0 时）
+    if (precision > 0 && !dot) {
+        size_t len = strlen(s);
+        if (len + 1 >= cap) return ERR_INPUT_TOO_LONG;
+        s[len] = '.';
+        s[len + 1] = '\0';
+        dot = strchr(p, '.');
+    }
+
+    // 计算当前小数位数
+    dot = strchr(p, '.');
+    int frac_len = dot ? (int)strlen(dot + 1) : 0;
+
+    // precision==0：看第一位小数决定是否进位，然后去掉小数点及后面
+    if (precision == 0) {
+        int round_digit = 0;
+        if (dot && frac_len > 0) round_digit = dot[1] - '0';
+        if (round_digit >= 5) {
+            if (!increment_result_integer(s, cap)) return ERR_INPUT_TOO_LONG;
+        }
+        if (dot) *dot = '\0';
+        // 消除可能产生的 "-0"
+        if (strcmp(s, "-0") == 0) strcpy(s, "0");
+        return SUCCESS;
+    }
+
+    // 小数位不足：补 0 到 precision+1（为了统一后面取 round_digit 的逻辑）
+    if (frac_len < precision + 1) {
+        size_t len = strlen(s);
+        int need = (precision + 1) - frac_len;
+        if (len + (size_t)need >= cap) return ERR_INPUT_TOO_LONG;
+        for (int i = 0; i < need; i++) s[len + i] = '0';
+        s[len + need] = '\0';
+        dot = strchr(p, '.');
+        frac_len = (int)strlen(dot + 1);
+    }
+
+    // 此时 frac_len >= precision+1，round_digit 就是第 precision+1 位
+    dot = strchr(p, '.');
+    char *frac = dot + 1;
+    int round_digit = frac[precision] - '0';
+
+    // 先截断到 precision 位（保留一位 round_digit 之前的位）
+    frac[precision] = '\0';
+
+    if (round_digit >= 5) {
+        int carry = 1;
+        // 从小数最后一位向前进位
+        for (int i = precision - 1; i >= 0 && carry; i--) {
+            if (frac[i] < '9') { frac[i] = (char)(frac[i] + 1); carry = 0; }
+            else { frac[i] = '0'; }
+        }
+        if (carry) {
+            // 小数全 9，进位到整数
+            *dot = '\0'; // 暂时去掉小数点
+            if (!increment_result_integer(s, cap)) return ERR_INPUT_TOO_LONG;
+            // 重新加回小数点与 precision 个 0
+            size_t len = strlen(s);
+            if (len + 1 + (size_t)precision >= cap) return ERR_INPUT_TOO_LONG;
+            s[len] = '.';
+            for (int i = 0; i < precision; i++) s[len + 1 + i] = '0';
+            s[len + 1 + precision] = '\0';
+            return SUCCESS;
+        }
+    }
+
+    // 补足到 precision 位（因为前面可能截断/或本来就不足）
+    dot = strchr(p, '.');
+    frac = dot + 1;
+    int now = (int)strlen(frac);
+    if (now < precision) {
+        size_t len = strlen(s);
+        int need = precision - now;
+        if (len + (size_t)need >= cap) return ERR_INPUT_TOO_LONG;
+        for (int i = 0; i < need; i++) s[len + i] = '0';
+        s[len + need] = '\0';
+    }
+
+    return SUCCESS;
+}
 
 /* ============================================================
  * 3. BigInt 大数运算库
@@ -229,7 +525,7 @@ static void bigint_abs_sub(const char *num1, const char *num2, char *result) {
 
 void bigint_sub(const char *num1, const char *num2, char *result) {
     // 我们需要一个临时数组来存储反转符号后的 num2
-    char inverted_num2[MAX_INPUT_LEN];
+    char inverted_num2[MAX_BIGINT_LEN];
 
     // 特殊情况：如果 num2 是 "0"，不需要加负号（避免出现 "-0"）
     if (strcmp(num2, "0") == 0) {
@@ -319,8 +615,89 @@ void bigint_mul(const char *num1, const char *num2, char *result) {
     free(temp_res); // 释放临时内存
 }
 
+// 内部工具：无符号数字字符串乘以 0..9 的单个数字
+static void bigint_abs_mul_digit(const char *num, int digit, char *out) {
+    if (digit <= 0) {
+        strcpy(out, "0");
+        return;
+    }
+    if (digit == 1) {
+        strcpy(out, num);
+        return;
+    }
+    int len = (int)strlen(num);
+    int carry = 0;
+    int k = 0;
+    for (int i = len - 1; i >= 0; i--) {
+        int v = (num[i] - '0') * digit + carry;
+        out[k++] = (char)('0' + (v % 10));
+        carry = v / 10;
+    }
+    while (carry > 0) {
+        out[k++] = (char)('0' + (carry % 10));
+        carry /= 10;
+    }
+    out[k] = '\0';
+    reverse_string(out);
+    remove_leading_zeros(out);
+}
 
-//
+// 内部工具：对余数执行一次“乘10取一位商”的除法步进
+// 返回：0..9 的当前位商；失败返回 -1（通常是缓冲区不足）
+static int div_step(char *rem, size_t rem_cap, const char *divisor) {
+    if (!append_char(rem, rem_cap, '0')) return -1;
+
+    int lo = 0, hi = 9, best = 0;
+    char prod[MAX_BIGINT_LEN * 2];
+    while (lo <= hi) {
+        int mid = (lo + hi) / 2;
+        bigint_abs_mul_digit(divisor, mid, prod);
+        int cmp = bigint_abs_compare(rem, prod);
+        if (cmp >= 0) { best = mid; lo = mid + 1; }
+        else { hi = mid - 1; }
+    }
+
+    if (best > 0) {
+        char next_rem[MAX_BIGINT_LEN * 2];
+        bigint_abs_mul_digit(divisor, best, prod);
+        bigint_abs_sub(rem, prod, next_rem);
+        strcpy(rem, next_rem);
+    } else {
+        remove_leading_zeros(rem);
+    }
+    return best;
+}
+
+// 内部工具：将 result（可能带 '-'）的整数部分 +1（按绝对值进位）
+static bool increment_result_integer(char *result, size_t cap) {
+    size_t len = strlen(result);
+    if (len == 0) return false;
+
+    int neg = (result[0] == '-');
+    char *start = result + (neg ? 1 : 0);
+    size_t start_idx = (size_t)(start - result);
+
+    // 从末尾向前进位
+    for (ssize_t i = (ssize_t)len - 1; i >= (ssize_t)start_idx; i--) {
+        if (result[i] < '0' || result[i] > '9') return false;
+        if (result[i] < '9') {
+            result[i] = (char)(result[i] + 1);
+            return true;
+        }
+        result[i] = '0';
+    }
+
+    // 产生了新的最高位 1，需要插入
+    if (len + 1 >= cap) return false;
+    if (neg) {
+        memmove(result + 2, result + 1, len - 0); // 包含 '\0'
+        result[1] = '1';
+    } else {
+        memmove(result + 1, result, len + 1);
+        result[0] = '1';
+    }
+    return true;
+}
 
 // 统一的大数除法：同时支持整数计算与高精度小数扩展
 void bigint_div(const char *num1, const char *num2, char *result, int precision, ErrorCode *err) {
@@ -340,8 +717,8 @@ void bigint_div(const char *num1, const char *num2, char *result, int precision,
     const char *abs2 = (sign2 == -1) ? num2 + 1 : num2;
 
     // 用于暂存除法过程中的数据
-    char current_rem[MAX_INPUT_LEN * 2] = "0"; // 当前余数
-    char temp_quo[MAX_INPUT_LEN * 2] = "";     // 暂存商
+    char current_rem[MAX_BIGINT_LEN * 2] = "0"; // 当前余数
+    char temp_quo[MAX_BIGINT_LEN * 2] = "";     // 暂存商
     int quo_idx = 0;
 
     // ==========================================
@@ -349,20 +726,31 @@ void bigint_div(const char *num1, const char *num2, char *result, int precision,
     // ==========================================
     for (int i = 0; abs1[i] != '\0'; i++) {
         // 拼接下一位数字 (如果当前是 "0"，直接覆盖)
-        int len = strlen(current_rem);
-        if (strcmp(current_rem, "0") == 0) len = 0;
-        current_rem[len] = abs1[i];
-        current_rem[len + 1] = '\0';
-
-        int count = 0;
-        char next_rem[MAX_INPUT_LEN * 2];
-        // 只要够减，就一直减
-        while (bigint_abs_compare(current_rem, abs2) >= 0) {
-            bigint_abs_sub(current_rem, abs2, next_rem);
-            strcpy(current_rem, next_rem);
-            count++;
+        if (strcmp(current_rem, "0") == 0) current_rem[0] = '\0';
+        if (!append_char(current_rem, sizeof(current_rem), abs1[i])) {
+            *err = ERR_INPUT_TOO_LONG;
+            return;
         }
-        temp_quo[quo_idx++] = count + '0';
+
+        // 试商（0..9 二分），避免连减
+        int lo = 0, hi = 9, best = 0;
+        char prod[MAX_BIGINT_LEN * 2];
+        while (lo <= hi) {
+            int mid = (lo + hi) / 2;
+            bigint_abs_mul_digit(abs2, mid, prod);
+            int cmp = bigint_abs_compare(current_rem, prod);
+            if (cmp >= 0) { best = mid; lo = mid + 1; }
+            else { hi = mid - 1; }
+        }
+        if (best > 0) {
+            char next_rem[MAX_BIGINT_LEN * 2];
+            bigint_abs_mul_digit(abs2, best, prod);
+            bigint_abs_sub(current_rem, prod, next_rem);
+            strcpy(current_rem, next_rem);
+        } else {
+            remove_leading_zeros(current_rem);
+        }
+        temp_quo[quo_idx++] = (char)('0' + best);
     }
     temp_quo[quo_idx] = '\0';
 
@@ -384,27 +772,55 @@ void bigint_div(const char *num1, const char *num2, char *result, int precision,
     k += strlen(p_quo);
 
     // ==========================================
-    // 阶段二：小数扩展计算 (如果还有余数，且要求精度 > 0)
+    // 阶段二：小数扩展计算 + 四舍五入（half-up）
     // ==========================================
-    if (strcmp(current_rem, "0") != 0 && precision > 0) {
-        result[k++] = '.'; // 点上小数点
-        
-        for (int i = 0; i < precision; i++) {
-            // 拼接 '0' (余数乘 10)
-            strcat(current_rem, "0");
+    if (precision > 0) {
+        int round_digit = 0;
+        int wrote = 0;
+        char frac[MAX_BIGINT_LEN + 2];
 
-            int count = 0;
-            char next_rem[MAX_INPUT_LEN * 2];
-            while (bigint_abs_compare(current_rem, abs2) >= 0) {
-                bigint_abs_sub(current_rem, abs2, next_rem);
-                strcpy(current_rem, next_rem);
-                count++;
+        if (strcmp(current_rem, "0") != 0) {
+            for (int i = 0; i < precision; i++) {
+                if (strcmp(current_rem, "0") == 0) break;
+                int d = div_step(current_rem, sizeof(current_rem), abs2);
+                if (d < 0) { *err = ERR_INPUT_TOO_LONG; return; }
+                frac[wrote++] = (char)('0' + d);
             }
-            result[k++] = count + '0';
 
-            // 如果某一步余数为 0，说明除尽了，提前结束
-            if (strcmp(current_rem, "0") == 0) {
-                break;
+            // 额外算一位用于四舍五入
+            if (strcmp(current_rem, "0") != 0) {
+                int d = div_step(current_rem, sizeof(current_rem), abs2);
+                if (d < 0) { *err = ERR_INPUT_TOO_LONG; return; }
+                round_digit = d;
+            }
+        }
+
+        if (round_digit >= 5) {
+            int carry = 1;
+            for (int i = wrote - 1; i >= 0 && carry; i--) {
+                if (frac[i] < '9') { frac[i] = (char)(frac[i] + 1); carry = 0; }
+                else { frac[i] = '0'; }
+            }
+            if (carry) {
+                if (!increment_result_integer(result, MAX_BIGINT_LEN)) {
+                    *err = ERR_INPUT_TOO_LONG;
+                    return;
+                }
+            }
+        }
+
+        if (wrote > 0) {
+            result[k++] = '.';
+            for (int i = 0; i < wrote; i++) result[k++] = frac[i];
+        }
+    } else if (precision == 0 && strcmp(current_rem, "0") != 0) {
+        // precision==0 时：看第一位小数决定是否进位
+        int d = div_step(current_rem, sizeof(current_rem), abs2);
+        if (d < 0) { *err = ERR_INPUT_TOO_LONG; return; }
+        if (d >= 5) {
+            if (!increment_result_integer(result, MAX_BIGINT_LEN)) {
+                *err = ERR_INPUT_TOO_LONG;
+                return;
             }
         }
     }
@@ -436,16 +852,16 @@ int main(int argc, char *argv[]) {
         long p = strtol(argv[2], &endptr, 10);
         
         // 检查输入是否完全是数字，以及是否发生溢出
-        if (errno == ERANGE || *endptr != '\0' || p < 0) {
+        if (errno == ERANGE) {
+            fprintf(stderr, "Error: Precision too large. Maximum allowed is %d.\n", MAX_BIGINT_LEN);
+            return 1;
+        }
+        if (*endptr != '\0' || p < 0) {
             fprintf(stderr, "Error: Invalid precision value. It must be a non-negative integer.\n");
             return 1;
         }
-        
-        // 限制最大精度，避免内部数组 current_rem 等溢出MAX_INPUT_LEN
-        // 当前大数除法计算缓冲区容量是 MAX_INPUT_LEN * 2 (即 2048)
-        // 留出一定空间给初始数字和除法逻辑
-        if (p > MAX_INPUT_LEN) {
-            fprintf(stderr, "Error: Precision too large. Maximum allowed is %d.\n", MAX_INPUT_LEN);
+        if (p > MAX_BIGINT_LEN) {
+            fprintf(stderr, "Error: Precision too large. Maximum allowed is %d.\n", MAX_BIGINT_LEN);
             return 1;
         }
         
@@ -472,13 +888,13 @@ int main(int argc, char *argv[]) {
  * @param precision 保留的小数位数
  */
 void run_cli_mode(int argc, char *argv[], int precision) {
-    char expr[MAX_INPUT_LEN] = {0};
+    char expr[MAX_BIGINT_LEN] = {0};
     
     // 将所有参数拼接成一个完整的表达式字符串
     for (int i = 0; i < argc; ++i) {
-        strncat(expr, argv[i], MAX_INPUT_LEN - strlen(expr) - 1);
+        strncat(expr, argv[i], MAX_BIGINT_LEN - strlen(expr) - 1);
         if (i < argc - 1) {
-            strncat(expr, " ", MAX_INPUT_LEN - strlen(expr) - 1);
+            strncat(expr, " ", MAX_BIGINT_LEN - strlen(expr) - 1);
         }
     }
 
@@ -491,7 +907,7 @@ void run_cli_mode(int argc, char *argv[], int precision) {
  * 持续接收用户输入，逐行计算并输出结果，直到用户输入 "quit" 或 EOF
  */
 void run_interactive_mode(int precision) {
-    char input[MAX_INPUT_LEN];
+    char input[MAX_BIGINT_LEN];
 
     while (1) {
         printf("> "); // 命令提示符
@@ -519,10 +935,12 @@ void run_interactive_mode(int precision) {
             // 跳过可能跟随的空格
             while (*endptr != '\0' && isspace(*endptr)) endptr++;
             
-            if (errno == ERANGE || *endptr != '\0' || p < 0) {
+            if (errno == ERANGE) {
+                printf("Error: Precision too large. Maximum allowed is %d.\n", MAX_BIGINT_LEN);
+            } else if (*endptr != '\0' || p < 0) {
                 printf("Error: Invalid precision value. It must be a non-negative integer.\n");
-            } else if (p > MAX_INPUT_LEN) {
-                printf("Error: Precision too large. Maximum allowed is %d.\n", MAX_INPUT_LEN);
+            } else if (p > MAX_BIGINT_LEN) {
+                printf("Error: Precision too large. Maximum allowed is %d.\n", MAX_BIGINT_LEN);
             } else {
                 precision = (int)p;
                 printf("Precision set to %d\n", precision);
@@ -555,20 +973,26 @@ void run_interactive_mode(int precision) {
  * @param expr 待计算的表达式字符串（格式：\"num1 op num2\"）
  * @return 包含计算结果或错误信息的 CalcResult 结构体
  */
-// 工具 1：提取整数部分并计算小数位数
-void extract_decimal(const char *input, char *out_str, int *scale) {
-    char *dot = strchr(input, '.');
+// 工具 1：提取整数部分并计算小数位数（去掉小数点）
+static bool extract_decimal(const char *input, char *out_str, size_t cap, int *scale) {
+    const char *dot = strchr(input, '.');
     if (!dot) {
-        strcpy(out_str, input);
-        
+        size_t in_len = strlen(input);
+        if (in_len >= cap) return false;
+        memcpy(out_str, input, in_len + 1);
         *scale = 0;
-    } else {
-        int int_len = dot - input;
-        strncpy(out_str, input, int_len);
-        out_str[int_len] = '\0';
-        strcat(out_str, dot + 1);
-        *scale = strlen(dot + 1);
+        return true;
     }
+
+    size_t int_len = (size_t)(dot - input);
+    size_t frac_len = strlen(dot + 1);
+    if (int_len + frac_len >= cap) return false;
+
+    memcpy(out_str, input, int_len);
+    memcpy(out_str + int_len, dot + 1, frac_len);
+    out_str[int_len + frac_len] = '\0';
+    *scale = (int)frac_len;
+    return true;
 }
 
 // 工具 2：在结果字符串倒数第 N 位插入小数点
@@ -579,10 +1003,11 @@ void insert_decimal(char *str, int scale) {
     int is_negative = (str[0] == '-');
     int num_len = is_negative ? len - 1 : len;
     
-    // 安全检查，防止大 scale 溢出
-    if (scale > MAX_INPUT_LEN) return;
+    // 安全检查，防止大 scale 或结果长度溢出
+    if (scale > MAX_BIGINT_LEN) return;
 
-    char temp[MAX_INPUT_LEN * 2] = {0};
+    // 中间缓冲区：按大数上限预留空间
+    char temp[MAX_BIGINT_LEN + 4] = {0};
     int temp_idx = 0;
     
     if (is_negative) temp[temp_idx++] = '-';
@@ -595,19 +1020,16 @@ void insert_decimal(char *str, int scale) {
         }
         strcpy(temp + temp_idx, str + (is_negative ? 1 : 0));
     } else {
-        int insert_pos = len - scale;
+        // 数字部分的起始位置（跳过符号）
+        int start = is_negative ? 1 : 0;
+        // 在数字部分中倒数 scale 位插入小数点
+        int insert_pos = start + (num_len - scale);
+
         strncpy(temp, str, insert_pos);
         temp[insert_pos] = '.';
         strcpy(temp + insert_pos + 1, str + insert_pos);
     }
-    
-    if (strchr(temp, '.')) {
-        int final_len = strlen(temp);
-        while (final_len > 0 && temp[final_len - 1] == '0') final_len--;
-        if (final_len > 0 && temp[final_len - 1] == '.') final_len--;
-        temp[final_len] = '\0';
-    }
-    
+
     strcpy(str, temp);
 }
 
@@ -621,22 +1043,35 @@ CalcResult evaluate_expression(const char *expr, int precision) {
     char op = 0;
 
     // 1. 解析表达式为两个大数和一个运算符
-    if (!parse_basic_expression(expr, num1, &op, num2)) {
-        res.err = ERR_INVALID_INPUT;
+    res.err = parse_basic_expression(expr, num1, &op, num2);
+    if (res.err != SUCCESS) {
         return res;
     }
 
     // 2. 剥离小数点并准备参数
-    char int1[MAX_INPUT_LEN * 2], int2[MAX_INPUT_LEN * 2];
+    char int1[MAX_BIGINT_LEN * 2], int2[MAX_BIGINT_LEN * 2];
     int scale1, scale2;
-    extract_decimal(num1, int1, &scale1);
-    extract_decimal(num2, int2, &scale2);
+    if (!extract_decimal(num1, int1, sizeof(int1), &scale1) ||
+        !extract_decimal(num2, int2, sizeof(int2), &scale2)) {
+        res.err = ERR_INPUT_TOO_LONG;
+        return res;
+    }
 
     // 3. 执行包含小数逻辑的运算
     if (op == '+' || op == '-') {
+        // 特殊处理：0 输入
+        if (is_all_zeros_number(num1) && is_all_zeros_number(num2)) {
+            strcpy(res.result, "0");
+            return res;
+        }
         int max_scale = (scale1 > scale2) ? scale1 : scale2;
-        while (scale1 < max_scale) { strcat(int1, "0"); scale1++; }
-        while (scale2 < max_scale) { strcat(int2, "0"); scale2++; }
+        if (!append_zeros(int1, sizeof(int1), max_scale - scale1) ||
+            !append_zeros(int2, sizeof(int2), max_scale - scale2)) {
+            res.err = ERR_INPUT_TOO_LONG;
+            return res;
+        }
+        scale1 = max_scale;
+        scale2 = max_scale;
         
         if (op == '+') bigint_add(int1, int2, res.result);
         else bigint_sub(int1, int2, res.result);
@@ -644,13 +1079,32 @@ CalcResult evaluate_expression(const char *expr, int precision) {
         insert_decimal(res.result, max_scale);
         
     } else if (op == '*') {
+        // 特殊处理：0 输入
+        if (is_all_zeros_number(num1) || is_all_zeros_number(num2)) {
+            strcpy(res.result, "0");
+            return res;
+        }
         bigint_mul(int1, int2, res.result);
         insert_decimal(res.result, scale1 + scale2);
         
     } else if (op == '/') {
+        // 特殊处理：0 输入（0/x = 0，x=0 仍交给除法报错）
+        if (is_all_zeros_number(num1)) {
+            if (is_all_zeros_number(num2)) {
+                // 0/0 交给除法逻辑处理成除零错误
+            } else {
+                strcpy(res.result, "0");
+                return res;
+            }
+        }
         int max_scale = (scale1 > scale2) ? scale1 : scale2;
-        while (scale1 < max_scale) { strcat(int1, "0"); scale1++; }
-        while (scale2 < max_scale) { strcat(int2, "0"); scale2++; }
+        if (!append_zeros(int1, sizeof(int1), max_scale - scale1) ||
+            !append_zeros(int2, sizeof(int2), max_scale - scale2)) {
+            res.err = ERR_INPUT_TOO_LONG;
+            return res;
+        }
+        scale1 = max_scale;
+        scale2 = max_scale;
         
         // 传入指定的精度
         bigint_div(int1, int2, res.result, precision, &res.err); 
@@ -658,6 +1112,10 @@ CalcResult evaluate_expression(const char *expr, int precision) {
         res.err = ERR_UNSUPPORTED_OP;
     }
 
+    if (res.err == SUCCESS) {
+        ErrorCode ec = format_fixed_precision(res.result, sizeof(res.result), precision);
+        if (ec != SUCCESS) res.err = ec;
+    }
     return res;
 }
 
@@ -673,61 +1131,58 @@ CalcResult evaluate_expression(const char *expr, int precision) {
  * @param num2  解析得到的第二个数字输出缓冲区（MAX_BIGINT_LEN 长度）
  * @return 解析成功返回 true，否则返回 false
  */
-bool parse_basic_expression(const char *expr, char *num1, char *op, char *num2) {
+ErrorCode parse_basic_expression(const char *expr, char *num1, char *op, char *num2) {
     // 跳过前导空白
     while (*expr && isspace(*expr)) expr++;
     
-    // 解析第一个数字（支持负号）
+    // 解析第一个数字（支持负号；不接受前导 '+'）
     int num1_len = 0;
     if (*expr == '-') {
         num1[num1_len++] = '-';
         expr++;
     } else if (*expr == '+') {
-        expr++;
+        return ERR_INVALID_INPUT;
     }
     
-    // 检查是否有数字部分（允许小数点）
-    if (!isdigit(*expr) && *expr != '.') return false;
-    
-    while (isdigit(*expr) || *expr == '.') {
-        num1[num1_len++] = *expr++;
+    // 严格解析数字部分（最多一个点，且点两边都有数字）
+    {
+        bool neg = (num1_len == 1 && num1[0] == '-');
+        ErrorCode ec = parse_number_token(&expr, (int)neg, num1, MAX_BIGINT_LEN);
+        if (ec != SUCCESS) return ec;
     }
-    num1[num1_len] = '\0';
     
     // 跳过运算符前的空白
     while (*expr && isspace(*expr)) expr++;
     
     // 检查运算符
     if (!*expr || !strchr("+-*/", *expr)) {
-        return false;
+        return ERR_INVALID_INPUT;
     }
     *op = *expr++;
     
     // 跳过运算符后的空白
     while (*expr && isspace(*expr)) expr++;
     
-    // 解析第二个数字（支持负号）
+    // 解析第二个数字（支持负号；不接受前导 '+'）
     int num2_len = 0;
     if (*expr == '-') {
         num2[num2_len++] = '-';
         expr++;
     } else if (*expr == '+') {
-        expr++;
+        return ERR_INVALID_INPUT;
     }
     
-    // 检查是否有数字部分（允许小数点）
-    if (!isdigit(*expr) && *expr != '.') return false;
-    
-    while (isdigit(*expr) || *expr == '.') {
-        num2[num2_len++] = *expr++;
+    {
+        bool neg = (num2_len == 1 && num2[0] == '-');
+        ErrorCode ec = parse_number_token(&expr, (int)neg, num2, MAX_BIGINT_LEN);
+        if (ec != SUCCESS) return ec;
     }
-    num2[num2_len] = '\0';
     
     // 跳过末尾空白
     while (*expr && isspace(*expr)) expr++;
     
     // 检查是否已读取所有有效字符
-    return (*expr == '\0');
+    return (*expr == '\0') ? SUCCESS : ERR_INVALID_INPUT;
 }
 
 /**
@@ -747,6 +1202,9 @@ void print_result(const char *expr, CalcResult res) {
             break;
         case ERR_INVALID_INPUT:
             printf("The input cannot be interpret as numbers!\n");
+            break;
+        case ERR_INPUT_TOO_LONG:
+            printf("Error: Input is too long.\n");
             break;
         case ERR_UNSUPPORTED_OP:
             printf("Unsupported operation.\n");
