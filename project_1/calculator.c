@@ -6,9 +6,8 @@
 #include <errno.h>
 
 /* ============================================================
- * 1. 宏定义与结构体
+ * 1. 宏定义与数据结构
  * ============================================================ */
-
 #define MAX_BIGINT_LEN 2048
 
 // 错误代码枚举：统一管理所有可能的错误类型
@@ -17,11 +16,12 @@ typedef enum {
     ERR_DIV_BY_ZERO,       // 除数为零错误
     ERR_INVALID_INPUT,     // 输入格式无效
     ERR_INPUT_TOO_LONG,    // 输入过长/缓冲区容量不足
-    ERR_UNSUPPORTED_OP     // 不支持的运算符
+    ERR_UNSUPPORTED_OP,     // 不支持的运算符
+    ERR_NEGATIVE_SQRT       // 负数不能开平方根
 } ErrorCode;
 
 /* ============================================================
- * 新增: 词法与语法分析器数据结构 (Lexer & Parser)
+ * 新增: 词法与语法分析器数据˝结构 (Lexer & Parser)
  * ============================================================ */
 typedef enum {
     TOKEN_NUMBER,
@@ -31,6 +31,7 @@ typedef enum {
     TOKEN_DIV,
     TOKEN_LPAREN,
     TOKEN_RPAREN,
+    TOKEN_FUNC,
     TOKEN_EOF,
     TOKEN_ERROR
 } TokenType;
@@ -95,10 +96,10 @@ typedef struct {
     ErrorCode err;                // 错误代码
 } CalcResult;
 
-/* ============================================================
- * 2. 函数声明
- * ============================================================ */
 
+/* ============================================================
+ * 2. 全局函数声明
+ * ============================================================ */
 void run_interactive_mode(int precision);                                    // 交互模式入口
 void run_cli_mode(int argc, char *argv[], int precision);                      // 命令行模式入口
 CalcResult evaluate_expression(const char *expr, int precision);               // 表达式计算核心
@@ -123,16 +124,17 @@ static int bigint_abs_compare(const char *num1, const char *num2);
 void bigint_sub(const char *num1, const char *num2, char *result);
 void bigint_mul(const char *num1, const char *num2, char *result);
 void bigint_div(const char *num1, const char *num2, char *result, int precision, ErrorCode *err);
+ErrorCode bigint_sqrt(const char *num, char *result, int precision);
 // 去除前导零：将 "000123" 格式化为 "123"
 void remove_leading_zeros(char *str);
 
 // 字符串反转：方便个位对齐计算（通常底层运算都会用到）
 void reverse_string(char *str);
 
-/* ============================================================
- * 2.1 内部工具函数（固定缓冲区安全拼接/规范化）
- * ============================================================ */
 
+/* ============================================================
+ * 3. 底层工具与格式化 (Utils)
+ * ============================================================ */
 static bool append_char(char *dst, size_t cap, char c) {
     size_t len = strlen(dst);
     if (len + 1 >= cap) return false;
@@ -425,10 +427,70 @@ static ErrorCode format_fixed_precision(char *s, size_t cap, int precision) {
     return SUCCESS;
 }
 
-/* ============================================================
- * 3. BigInt 大数运算库
- * ============================================================ */
+// 工具 1：提取整数部分并计算小数位数（去掉小数点）
+static bool extract_decimal(const char *input, char *out_str, size_t cap, int *scale) {
+    const char *dot = strchr(input, '.');
+    if (!dot) {
+        size_t in_len = strlen(input);
+        if (in_len >= cap) return false;
+        memcpy(out_str, input, in_len + 1);
+        *scale = 0;
+        return true;
+    }
 
+    size_t int_len = (size_t)(dot - input);
+    size_t frac_len = strlen(dot + 1);
+    if (int_len + frac_len >= cap) return false;
+
+    memcpy(out_str, input, int_len);
+    memcpy(out_str + int_len, dot + 1, frac_len);
+    out_str[int_len + frac_len] = '\0';
+    *scale = (int)frac_len;
+    return true;
+}
+
+// 工具 2：在结果字符串倒数第 N 位插入小数点
+void insert_decimal(char *str, int scale) {
+    if (scale <= 0) return;
+    
+    int len = strlen(str);
+    int is_negative = (str[0] == '-');
+    int num_len = is_negative ? len - 1 : len;
+    
+    // 安全检查，防止大 scale 或结果长度溢出
+    if (scale > MAX_BIGINT_LEN) return;
+
+    // 中间缓冲区：按大数上限预留空间
+    char temp[MAX_BIGINT_LEN + 4] = {0};
+    int temp_idx = 0;
+    
+    if (is_negative) temp[temp_idx++] = '-';
+    
+    if (num_len <= scale) {
+        temp[temp_idx++] = '0';
+        temp[temp_idx++] = '.';
+        for (int i = 0; i < scale - num_len; i++) {
+            temp[temp_idx++] = '0';
+        }
+        strcpy(temp + temp_idx, str + (is_negative ? 1 : 0));
+    } else {
+        // 数字部分的起始位置（跳过符号）
+        int start = is_negative ? 1 : 0;
+        // 在数字部分中倒数 scale 位插入小数点
+        int insert_pos = start + (num_len - scale);
+
+        strncpy(temp, str, insert_pos);
+        temp[insert_pos] = '.';
+        strcpy(temp + insert_pos + 1, str + insert_pos);
+    }
+
+    strcpy(str, temp);
+}
+
+
+/* ============================================================
+ * 4. BigInt 大数核心数学库
+ * ============================================================ */
 // 字符串反转：方便个位对齐计算
 void reverse_string(char *str) {
     int len = strlen(str);
@@ -900,10 +962,395 @@ void bigint_div(const char *num1, const char *num2, char *result, int precision,
 
 
 
-/* ============================================================
- * 5. 交互模式与主函数
- * ============================================================ */
+// 大数平方根：牛顿迭代法
+// 利用纯整数的“放大缩小”数学思想，将带小数的平方根转化为纯整数平方根运算
+ErrorCode bigint_sqrt(const char *num, char *result, int precision) {
+    // 检查负数
+    if (num[0] == '-') return ERR_NEGATIVE_SQRT;
+    // 检查零
+    if (is_all_zeros_number(num)) {
+        strcpy(result, "0");
+        return format_fixed_precision(result, MAX_BIGINT_LEN, precision);
+    }
 
+    // 1. 扩大工作精度，防止末位舍入误差
+    // 采用你的思路：给 sqrt 限定一个最大的内部运算精度（比如 50 位），防止运算溢出和超时
+    int work_prec = precision;
+    if (work_prec > 50) work_prec = 50; // 固定合适的最大内部精度上限
+    work_prec += 4;
+    
+    char num_int[MAX_BIGINT_LEN * 2];
+    int scale_out;
+    if (!extract_decimal(num, num_int, sizeof(num_int), &scale_out)) {
+        return ERR_INPUT_TOO_LONG;
+    }
+    
+    // 如果原输入的小数位数非常大，确保工作精度顶得住
+    if (work_prec * 2 < scale_out) {
+        work_prec = (scale_out + 1) / 2;
+    }
+    
+    // 2. 强行补零放大，使得最终算出整数后，只需向左退 `work_prec` 位就能得到精确结果
+    // 证明：sqrt(X * 10^-scale) = sqrt(X * 10^(2*work_prec - scale) * 10^(-2*work_prec))
+    //                          = sqrt(X * 10^padding) * 10^-work_prec
+    int padding = 2 * work_prec - scale_out;
+    if (!append_zeros(num_int, sizeof(num_int), padding)) return ERR_INPUT_TOO_LONG;
+
+    // 3. 构建初始猜测值（取字符串长度的一半作为 10 的幂次，能将迭代次数骤降到十几次）
+    int len = strlen(num_int);
+    int guess_len = (len + 1) / 2;
+    char x_old[MAX_BIGINT_LEN];
+    x_old[0] = '1';
+    for (int i = 1; i < guess_len; i++) {
+        x_old[i] = '0';
+    }
+    x_old[guess_len] = '\0';
+
+    char x_new[MAX_BIGINT_LEN];
+    char quotient[MAX_BIGINT_LEN];
+    char sum[MAX_BIGINT_LEN];
+    ErrorCode div_err;
+
+    // 4. 野兽般的纯整数牛顿迭代
+    int max_iter = 300;
+    for (int i = 0; i < max_iter; i++) {
+        div_err = SUCCESS;
+        // precision 传 0 意味着它是绝对纯粹的【整数除法】
+        bigint_div(num_int, x_old, quotient, 0, &div_err);
+        if (div_err != SUCCESS) return div_err;
+
+        bigint_add(x_old, quotient, sum);
+        
+        div_err = SUCCESS;
+        bigint_div(sum, "2", x_new, 0, &div_err);
+        if (div_err != SUCCESS) return div_err;
+
+        // 如果结果完全收敛
+        if (strcmp(x_old, x_new) == 0) {
+            break;
+        }
+        
+        // 整数牛顿迭代在触底时必定会上升或震荡 (比如在 sqrt(3) 时从 1 变成 2)
+        // 第一步 (i=0) 可能因为初始猜测过小导致 x_new > x_old，所以从第二步 (i>0) 开始才启动反弹检测
+        // 数学上，由均值不等式保证，从 i=1 起，所有的 x 都是大于真实根的过估计，只会单调递减
+        if (i > 0 && bigint_abs_compare(x_new, x_old) >= 0) {
+            strcpy(x_new, x_old); 
+            break;
+        }
+
+        strcpy(x_old, x_new);
+    }
+
+    // 5. 神龙摆尾：把退出来的 `work_prec` 统统用小数点插回去
+    insert_decimal(x_new, work_prec);
+
+    // 6. 整理至用户想要的最终尺寸
+    format_fixed_precision(x_new, sizeof(x_new), precision);
+    strcpy(result, x_new);
+    return SUCCESS;
+}
+
+/* ============================================================
+ * 5. 词法分析与语法调度场 (Lexer & Parser)
+ * ============================================================ */
+// ==================== LEXER & SHUNTING-YARD PARSER ====================
+
+// 获取操作符优先级
+static int precedence(char op) {
+    if (op == '+' || op == '-') return 1;
+    if (op == '*' || op == '/') return 2;
+    return 0;
+}
+
+// 词法切词器：按 Token 提取
+static Token get_next_token(const char **p, bool expects_unary) {
+    Token t;
+    t.type = TOKEN_ERROR;
+    t.value[0] = '\0';
+
+    // 跳过多余空格
+    while (**p && isspace(**p)) (*p)++;
+
+    if (**p == '\0') {
+        t.type = TOKEN_EOF;
+        return t;
+    }
+
+    char c = **p;
+
+    // 解析数字或一元符号
+    if (is_ascii_digit(c) || c == '.' || (c == '-' && expects_unary) || (c == '+' && expects_unary)) {
+        if (c == '+' && expects_unary) {
+            // 不接受显式正号
+            return t; 
+        }
+        int neg = 0;
+        const char *start = *p;
+        if (c == '-') {
+            neg = 1;
+            (*p)++;
+            // 如果紧接的不是数字或点，那是孤立的减号（不该在一元上下文中，防错）
+            if (!is_ascii_digit(**p) && **p != '.') {
+                *p = start; // 回退
+                t.type = TOKEN_MINUS;
+                t.value[0] = '-'; t.value[1] = '\0';
+                (*p)++;
+                return t;
+            }
+        } else {
+            *p = start; // 恢复位置让 parse_number_token 处理
+        }
+        
+        // 调用底层的底层安全数字解析（科学计数法扩展）
+        ErrorCode ec = parse_number_token(p, neg, t.value, MAX_BIGINT_LEN);
+        if (ec != SUCCESS) {
+            return t; // 错误 token
+        }
+        t.type = TOKEN_NUMBER;
+        return t;
+    }
+
+    // 解析函数名（小写字母序列）
+    if (c >= 'a' && c <= 'z') {
+        int idx = 0;
+        while (**p >= 'a' && **p <= 'z') {
+            if (idx >= MAX_BIGINT_LEN - 1) return t; // 函数名过长，返回 TOKEN_ERROR
+            t.value[idx++] = **p;
+            (*p)++;
+        }
+        t.value[idx] = '\0';
+        t.type = TOKEN_FUNC;
+        return t;
+    }
+
+    // 解析普通符号
+    (*p)++;
+    t.value[0] = c; t.value[1] = '\0';
+    switch (c) {
+        case '+': t.type = TOKEN_PLUS; break;
+        case '-': t.type = TOKEN_MINUS; break;
+        case '*': t.type = TOKEN_MUL; break;
+        case '/': t.type = TOKEN_DIV; break;
+        case '(': t.type = TOKEN_LPAREN; break;
+        case ')': t.type = TOKEN_RPAREN; break;
+        default: break; // 不认识的符号返回 TOKEN_ERROR
+    }
+    return t;
+}
+
+
+// 核心套用单个算子
+static ErrorCode apply_operator(ValueStack *vals, char op, int precision) {
+    char num2[MAX_BIGINT_LEN], num1[MAX_BIGINT_LEN];
+    ErrorCode err;
+    if ((err = pop_v(vals, num2)) != SUCCESS) return ERR_INVALID_INPUT;
+    if ((err = pop_v(vals, num1)) != SUCCESS) return ERR_INVALID_INPUT;
+
+    char int1[MAX_BIGINT_LEN * 2], int2[MAX_BIGINT_LEN * 2];
+    int scale1, scale2;
+    char result[MAX_BIGINT_LEN] = "0";
+
+    if (!extract_decimal(num1, int1, sizeof(int1), &scale1) ||
+        !extract_decimal(num2, int2, sizeof(int2), &scale2)) {
+        return ERR_INPUT_TOO_LONG;
+    }
+
+    if (op == '+' || op == '-') {
+        if (is_all_zeros_number(num1) && is_all_zeros_number(num2)) {
+            return push_v(vals, "0");
+        }
+        int max_scale = (scale1 > scale2) ? scale1 : scale2;
+        if (!append_zeros(int1, sizeof(int1), max_scale - scale1) ||
+            !append_zeros(int2, sizeof(int2), max_scale - scale2)) {
+            return ERR_INPUT_TOO_LONG;
+        }
+        if (op == '+') bigint_add(int1, int2, result);
+        else bigint_sub(int1, int2, result);
+        insert_decimal(result, max_scale);
+
+    } else if (op == '*') {
+        if (is_all_zeros_number(num1) || is_all_zeros_number(num2)) {
+            return push_v(vals, "0");
+        }
+        bigint_mul(int1, int2, result);
+        insert_decimal(result, scale1 + scale2);
+
+    } else if (op == '/') {
+        if (is_all_zeros_number(num2)) return ERR_DIV_BY_ZERO;
+        if (is_all_zeros_number(num1)) return push_v(vals, "0");
+        int max_scale = (scale1 > scale2) ? scale1 : scale2;
+        if (!append_zeros(int1, sizeof(int1), max_scale - scale1) ||
+            !append_zeros(int2, sizeof(int2), max_scale - scale2)) {
+            return ERR_INPUT_TOO_LONG;
+        }
+        ErrorCode div_err;
+        bigint_div(int1, int2, result, precision, &div_err);
+        if (div_err != SUCCESS) return div_err;
+
+    } else {
+        return ERR_UNSUPPORTED_OP;
+    }
+
+    ErrorCode format_err = format_fixed_precision(result, sizeof(result), precision);
+    if (format_err != SUCCESS) return format_err;
+    return push_v(vals, result);
+}
+
+// 调度场算法主控
+/**
+ * 表达式计算核心函数（支持大数运算）
+ * 解析输入表达式并使用 BigInt 库进行计算
+ * 
+ * @param expr 待计算的表达式字符串（格式：\"num1 op num2\"）
+ * @return 包含计算结果或错误信息的 CalcResult 结构体
+ */
+CalcResult evaluate_expression(const char *expr, int precision) {
+    CalcResult res;
+    strcpy(res.result, "");
+    res.err = SUCCESS;
+
+    ValueStack v_stack; init_v_stack(&v_stack);
+    OpStack o_stack; init_o_stack(&o_stack);
+
+    bool expects_unary = true; // 起始一定期待数字或一元符号
+    const char *p = expr;
+
+    while (1) {
+        Token t = get_next_token(&p, expects_unary);
+        if (t.type == TOKEN_ERROR) {
+            res.err = ERR_INVALID_INPUT;
+            return res;
+        }
+        if (t.type == TOKEN_EOF) {
+            break;
+        }
+
+        if (t.type == TOKEN_FUNC) {
+            // 查函数字典
+            char func_marker = 0;
+            if (strcmp(t.value, "sqrt") == 0) {
+                func_marker = 'S';
+            } else if (strcmp(t.value, "abs") == 0) {
+                func_marker = 'A';
+            } else {
+                res.err = ERR_INVALID_INPUT; // 不认识的函数名
+                return res;
+            }
+            // 压入函数标记到符号栈
+            if ((res.err = push_o(&o_stack, func_marker)) != SUCCESS) return res;
+            expects_unary = true; // 函数名后面一定紧跟 '('
+        }
+        else if (t.type == TOKEN_NUMBER) {
+            if ((res.err = push_v(&v_stack, t.value)) != SUCCESS) return res;
+            expects_unary = false; 
+        } 
+        else if (t.type == TOKEN_LPAREN) {
+            if ((res.err = push_o(&o_stack, '(')) != SUCCESS) return res;
+            expects_unary = true;
+        } 
+        else if (t.type == TOKEN_RPAREN) {
+            while (peek_o(&o_stack) != '(') {
+                if (peek_o(&o_stack) == '\0') {
+                    res.err = ERR_INVALID_INPUT; // 括号不匹配
+                    return res;
+                }
+                char op; pop_o(&o_stack, &op);
+                if ((res.err = apply_operator(&v_stack, op, precision)) != SUCCESS) return res;
+            }
+            char scrap; pop_o(&o_stack, &scrap); // 弹出 '('
+            // 检查括号外面是否挂着函数标记
+            if (peek_o(&o_stack) == 'S') {
+                char func_mark; pop_o(&o_stack, &func_mark);
+                // sqrt: 弹出数字栈顶，计算平方根，压回
+                char arg[MAX_BIGINT_LEN], sqrt_result[MAX_BIGINT_LEN];
+                if ((res.err = pop_v(&v_stack, arg)) != SUCCESS) return res;
+                res.err = bigint_sqrt(arg, sqrt_result, precision);
+                if (res.err != SUCCESS) return res;
+                if ((res.err = push_v(&v_stack, sqrt_result)) != SUCCESS) return res;
+            } else if (peek_o(&o_stack) == 'A') {
+                char func_mark; pop_o(&o_stack, &func_mark);
+                // abs: 弹出数字栈顶，去掉负号，压回
+                char arg[MAX_BIGINT_LEN];
+                if ((res.err = pop_v(&v_stack, arg)) != SUCCESS) return res;
+                if (arg[0] == '-') memmove(arg, arg + 1, strlen(arg)); // 去掉前缀负号
+                if ((res.err = push_v(&v_stack, arg)) != SUCCESS) return res;
+            }
+            expects_unary = false; // 右括号后面不应该立刻跟一元符号（除非遇到下一个运算符）
+        } 
+        else { // 四则运算符
+            // 巧妙处理独立一元减号（例如 "-(2+3)" 被剥离为 "-1 * (2+3)"）
+            // 这样能完美在双栈调度场中保留乘法的优先级
+            if (expects_unary && t.value[0] == '-') {
+                if ((res.err = push_v(&v_stack, "-1")) != SUCCESS) return res;
+                t.value[0] = '*'; // 把这一个减号 Token 继续扮演成乘号参与循环
+            } else if (expects_unary && t.value[0] == '+') {
+                res.err = ERR_INVALID_INPUT; // 不接受显式正号
+                return res;
+            }
+
+            while (peek_o(&o_stack) != '\0' && peek_o(&o_stack) != '(' &&
+                   precedence(peek_o(&o_stack)) >= precedence(t.value[0])) {
+                char op; pop_o(&o_stack, &op);
+                if ((res.err = apply_operator(&v_stack, op, precision)) != SUCCESS) return res;
+            }
+            if ((res.err = push_o(&o_stack, t.value[0])) != SUCCESS) return res;
+            expects_unary = true; // 符号之后必须有数字或一元符号
+        }
+    }
+
+    // 清空堆栈里剩下的符号
+    while (peek_o(&o_stack) != '\0') {
+        char op; pop_o(&o_stack, &op);
+        if (op == '(') {
+            res.err = ERR_INVALID_INPUT; // 不匹配的括号（左括号多余）
+            return res;
+        }
+        if ((res.err = apply_operator(&v_stack, op, precision)) != SUCCESS) return res;
+    }
+
+    // 安全检查，值栈内只能剩下一个最终结果
+    if (v_stack.top != 0) { 
+        res.err = ERR_INVALID_INPUT; // 数字太多没算完（比如输入 "5 5"）
+        return res;
+    }
+
+    pop_v(&v_stack, res.result);
+    return res;
+}
+
+
+/* ============================================================
+ * 6. 应用入口与交互逻辑 (Main & I/O)
+ * ============================================================ */
+/**
+ * 结果输出与错误处理函数
+ * 根据计算结果的错误代码输出相应的信息（支持大数结果显示）
+ *
+ * @param expr 原始表达式字符串（用于成功时的显示）
+ * @param res  计算结果结构体（包含字符串形式的大数结果）
+ */
+void print_result(const char *expr, CalcResult res) {
+    switch (res.err) {
+        case SUCCESS:
+            printf("%s = %s\n", expr, res.result);  // 输出字符串形式的大数
+            break;
+        case ERR_DIV_BY_ZERO:
+            printf("A number cannot be divied by zero.\n");
+            break;
+        case ERR_INVALID_INPUT:
+            printf("The input cannot be interpret as numbers!\n");
+            break;
+        case ERR_INPUT_TOO_LONG:
+            printf("Error: Input is too long.\n");
+            break;
+        case ERR_UNSUPPORTED_OP:
+            printf("Unsupported operation.\n");
+            break;
+        case ERR_NEGATIVE_SQRT:
+            printf("Error: square root of negative number.\n");
+            break;
+    }
+}
 /**
  * 程序主函数
  * 根据命令行参数判断运行模式：
@@ -1052,312 +1499,3 @@ void run_interactive_mode(int precision) {
     }
 }
 
-/* ============================================================
- * 4. 表达式解析与核心计算逻辑
- * ============================================================ */
-
-/**
- * 表达式计算核心函数（支持大数运算）
- * 解析输入表达式并使用 BigInt 库进行计算
- * 
- * @param expr 待计算的表达式字符串（格式：\"num1 op num2\"）
- * @return 包含计算结果或错误信息的 CalcResult 结构体
- */
-// 工具 1：提取整数部分并计算小数位数（去掉小数点）
-static bool extract_decimal(const char *input, char *out_str, size_t cap, int *scale) {
-    const char *dot = strchr(input, '.');
-    if (!dot) {
-        size_t in_len = strlen(input);
-        if (in_len >= cap) return false;
-        memcpy(out_str, input, in_len + 1);
-        *scale = 0;
-        return true;
-    }
-
-    size_t int_len = (size_t)(dot - input);
-    size_t frac_len = strlen(dot + 1);
-    if (int_len + frac_len >= cap) return false;
-
-    memcpy(out_str, input, int_len);
-    memcpy(out_str + int_len, dot + 1, frac_len);
-    out_str[int_len + frac_len] = '\0';
-    *scale = (int)frac_len;
-    return true;
-}
-
-// 工具 2：在结果字符串倒数第 N 位插入小数点
-void insert_decimal(char *str, int scale) {
-    if (scale <= 0) return;
-    
-    int len = strlen(str);
-    int is_negative = (str[0] == '-');
-    int num_len = is_negative ? len - 1 : len;
-    
-    // 安全检查，防止大 scale 或结果长度溢出
-    if (scale > MAX_BIGINT_LEN) return;
-
-    // 中间缓冲区：按大数上限预留空间
-    char temp[MAX_BIGINT_LEN + 4] = {0};
-    int temp_idx = 0;
-    
-    if (is_negative) temp[temp_idx++] = '-';
-    
-    if (num_len <= scale) {
-        temp[temp_idx++] = '0';
-        temp[temp_idx++] = '.';
-        for (int i = 0; i < scale - num_len; i++) {
-            temp[temp_idx++] = '0';
-        }
-        strcpy(temp + temp_idx, str + (is_negative ? 1 : 0));
-    } else {
-        // 数字部分的起始位置（跳过符号）
-        int start = is_negative ? 1 : 0;
-        // 在数字部分中倒数 scale 位插入小数点
-        int insert_pos = start + (num_len - scale);
-
-        strncpy(temp, str, insert_pos);
-        temp[insert_pos] = '.';
-        strcpy(temp + insert_pos + 1, str + insert_pos);
-    }
-
-    strcpy(str, temp);
-}
-
-// ==================== LEXER & SHUNTING-YARD PARSER ====================
-
-// 获取操作符优先级
-static int precedence(char op) {
-    if (op == '+' || op == '-') return 1;
-    if (op == '*' || op == '/') return 2;
-    return 0;
-}
-
-// 词法切词器：按 Token 提取
-static Token get_next_token(const char **p, bool expects_unary) {
-    Token t;
-    t.type = TOKEN_ERROR;
-    t.value[0] = '\0';
-
-    // 跳过多余空格
-    while (**p && isspace(**p)) (*p)++;
-
-    if (**p == '\0') {
-        t.type = TOKEN_EOF;
-        return t;
-    }
-
-    char c = **p;
-
-    // 解析数字或一元符号
-    if (is_ascii_digit(c) || c == '.' || (c == '-' && expects_unary) || (c == '+' && expects_unary)) {
-        if (c == '+' && expects_unary) {
-            // 不接受显式正号
-            return t; 
-        }
-        int neg = 0;
-        const char *start = *p;
-        if (c == '-') {
-            neg = 1;
-            (*p)++;
-            // 如果紧接的不是数字或点，那是孤立的减号（不该在一元上下文中，防错）
-            if (!is_ascii_digit(**p) && **p != '.') {
-                *p = start; // 回退
-                t.type = TOKEN_MINUS;
-                t.value[0] = '-'; t.value[1] = '\0';
-                (*p)++;
-                return t;
-            }
-        } else {
-            *p = start; // 恢复位置让 parse_number_token 处理
-        }
-        
-        // 调用底层的底层安全数字解析（科学计数法扩展）
-        ErrorCode ec = parse_number_token(p, neg, t.value, MAX_BIGINT_LEN);
-        if (ec != SUCCESS) {
-            return t; // 错误 token
-        }
-        t.type = TOKEN_NUMBER;
-        return t;
-    }
-
-    // 解析普通符号
-    (*p)++;
-    t.value[0] = c; t.value[1] = '\0';
-    switch (c) {
-        case '+': t.type = TOKEN_PLUS; break;
-        case '-': t.type = TOKEN_MINUS; break;
-        case '*': t.type = TOKEN_MUL; break;
-        case '/': t.type = TOKEN_DIV; break;
-        case '(': t.type = TOKEN_LPAREN; break;
-        case ')': t.type = TOKEN_RPAREN; break;
-        default: break; // 不认识的符号返回 TOKEN_ERROR
-    }
-    return t;
-}
-
-// 核心套用单个算子
-static ErrorCode apply_operator(ValueStack *vals, char op, int precision) {
-    char num2[MAX_BIGINT_LEN], num1[MAX_BIGINT_LEN];
-    ErrorCode err;
-    if ((err = pop_v(vals, num2)) != SUCCESS) return ERR_INVALID_INPUT;
-    if ((err = pop_v(vals, num1)) != SUCCESS) return ERR_INVALID_INPUT;
-
-    char int1[MAX_BIGINT_LEN * 2], int2[MAX_BIGINT_LEN * 2];
-    int scale1, scale2;
-    char result[MAX_BIGINT_LEN] = "0";
-
-    if (!extract_decimal(num1, int1, sizeof(int1), &scale1) ||
-        !extract_decimal(num2, int2, sizeof(int2), &scale2)) {
-        return ERR_INPUT_TOO_LONG;
-    }
-
-    if (op == '+' || op == '-') {
-        if (is_all_zeros_number(num1) && is_all_zeros_number(num2)) {
-            return push_v(vals, "0");
-        }
-        int max_scale = (scale1 > scale2) ? scale1 : scale2;
-        if (!append_zeros(int1, sizeof(int1), max_scale - scale1) ||
-            !append_zeros(int2, sizeof(int2), max_scale - scale2)) {
-            return ERR_INPUT_TOO_LONG;
-        }
-        if (op == '+') bigint_add(int1, int2, result);
-        else bigint_sub(int1, int2, result);
-        insert_decimal(result, max_scale);
-
-    } else if (op == '*') {
-        if (is_all_zeros_number(num1) || is_all_zeros_number(num2)) {
-            return push_v(vals, "0");
-        }
-        bigint_mul(int1, int2, result);
-        insert_decimal(result, scale1 + scale2);
-
-    } else if (op == '/') {
-        if (is_all_zeros_number(num2)) return ERR_DIV_BY_ZERO;
-        if (is_all_zeros_number(num1)) return push_v(vals, "0");
-        int max_scale = (scale1 > scale2) ? scale1 : scale2;
-        if (!append_zeros(int1, sizeof(int1), max_scale - scale1) ||
-            !append_zeros(int2, sizeof(int2), max_scale - scale2)) {
-            return ERR_INPUT_TOO_LONG;
-        }
-        ErrorCode div_err;
-        bigint_div(int1, int2, result, precision, &div_err);
-        if (div_err != SUCCESS) return div_err;
-
-    } else {
-        return ERR_UNSUPPORTED_OP;
-    }
-
-    ErrorCode format_err = format_fixed_precision(result, sizeof(result), precision);
-    if (format_err != SUCCESS) return format_err;
-    return push_v(vals, result);
-}
-
-// 调度场算法主控
-CalcResult evaluate_expression(const char *expr, int precision) {
-    CalcResult res;
-    strcpy(res.result, "");
-    res.err = SUCCESS;
-
-    ValueStack v_stack; init_v_stack(&v_stack);
-    OpStack o_stack; init_o_stack(&o_stack);
-
-    bool expects_unary = true; // 起始一定期待数字或一元符号
-    const char *p = expr;
-
-    while (1) {
-        Token t = get_next_token(&p, expects_unary);
-        if (t.type == TOKEN_ERROR) {
-            res.err = ERR_INVALID_INPUT;
-            return res;
-        }
-        if (t.type == TOKEN_EOF) {
-            break;
-        }
-
-        if (t.type == TOKEN_NUMBER) {
-            if ((res.err = push_v(&v_stack, t.value)) != SUCCESS) return res;
-            expects_unary = false; 
-        } 
-        else if (t.type == TOKEN_LPAREN) {
-            if ((res.err = push_o(&o_stack, '(')) != SUCCESS) return res;
-            expects_unary = true;
-        } 
-        else if (t.type == TOKEN_RPAREN) {
-            while (peek_o(&o_stack) != '(') {
-                if (peek_o(&o_stack) == '\0') {
-                    res.err = ERR_INVALID_INPUT; // 括号不匹配
-                    return res;
-                }
-                char op; pop_o(&o_stack, &op);
-                if ((res.err = apply_operator(&v_stack, op, precision)) != SUCCESS) return res;
-            }
-            char scrap; pop_o(&o_stack, &scrap); // 弹出 '('
-            expects_unary = false; // 右括号后面不应该立刻跟一元符号（除非遇到下一个运算符）
-        } 
-        else { // 四则运算符
-            // 巧妙处理独立一元减号（例如 "-(2+3)" 被剥离为 "-1 * (2+3)"）
-            // 这样能完美在双栈调度场中保留乘法的优先级
-            if (expects_unary && t.value[0] == '-') {
-                if ((res.err = push_v(&v_stack, "-1")) != SUCCESS) return res;
-                t.value[0] = '*'; // 把这一个减号 Token 继续扮演成乘号参与循环
-            } else if (expects_unary && t.value[0] == '+') {
-                res.err = ERR_INVALID_INPUT; // 不接受显式正号
-                return res;
-            }
-
-            while (peek_o(&o_stack) != '\0' && peek_o(&o_stack) != '(' &&
-                   precedence(peek_o(&o_stack)) >= precedence(t.value[0])) {
-                char op; pop_o(&o_stack, &op);
-                if ((res.err = apply_operator(&v_stack, op, precision)) != SUCCESS) return res;
-            }
-            if ((res.err = push_o(&o_stack, t.value[0])) != SUCCESS) return res;
-            expects_unary = true; // 符号之后必须有数字或一元符号
-        }
-    }
-
-    // 清空堆栈里剩下的符号
-    while (peek_o(&o_stack) != '\0') {
-        char op; pop_o(&o_stack, &op);
-        if (op == '(') {
-            res.err = ERR_INVALID_INPUT; // 不匹配的括号（左括号多余）
-            return res;
-        }
-        if ((res.err = apply_operator(&v_stack, op, precision)) != SUCCESS) return res;
-    }
-
-    // 安全检查，值栈内只能剩下一个最终结果
-    if (v_stack.top != 0) { 
-        res.err = ERR_INVALID_INPUT; // 数字太多没算完（比如输入 "5 5"）
-        return res;
-    }
-
-    pop_v(&v_stack, res.result);
-    return res;
-}
-
-/**
- * 结果输出与错误处理函数
- * 根据计算结果的错误代码输出相应的信息（支持大数结果显示）
- *
- * @param expr 原始表达式字符串（用于成功时的显示）
- * @param res  计算结果结构体（包含字符串形式的大数结果）
- */
-void print_result(const char *expr, CalcResult res) {
-    switch (res.err) {
-        case SUCCESS:
-            printf("%s = %s\n", expr, res.result);  // 输出字符串形式的大数
-            break;
-        case ERR_DIV_BY_ZERO:
-            printf("A number cannot be divied by zero.\n");
-            break;
-        case ERR_INVALID_INPUT:
-            printf("The input cannot be interpret as numbers!\n");
-            break;
-        case ERR_INPUT_TOO_LONG:
-            printf("Error: Input is too long.\n");
-            break;
-        case ERR_UNSUPPORTED_OP:
-            printf("Unsupported operation.\n");
-            break;
-    }
-}
