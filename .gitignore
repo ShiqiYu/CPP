@@ -1,6 +1,72 @@
-*.out
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
 *.o
-~$*
-settings.json
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+project_1/a
+project_1/calculator
+a.out
+
+# macOS specific
 .DS_Store
-.vscode
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# VS Code environment & configs
+.vscode/
+*.code-workspace
+.history/
+settings.json
+
+# Python virtual environment (if occasionally used in lab tools)
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.pyc
+*.pyo
+
+# CMake or Make 
+build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
