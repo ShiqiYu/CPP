@@ -8,7 +8,8 @@
 /* ============================================================
  * 1. 宏定义与数据结构
  * ============================================================ */
-#define MAX_BIGINT_LEN 2048
+#define MAX_BIGINT_LEN 4096
+#define LIMIT_PRECISION (MAX_BIGINT_LEN - 1024)
 
 // 错误代码枚举：统一管理所有可能的错误类型
 typedef enum {
@@ -19,6 +20,13 @@ typedef enum {
     ERR_UNSUPPORTED_OP,     // 不支持的运算符
     ERR_NEGATIVE_SQRT       // 负数不能开平方根
 } ErrorCode;
+
+// 显示模式
+typedef enum {
+    NOTATION_AUTO,   // 智能切换（默认，类似 %g）
+    NOTATION_FIXED,  // 强制定点数（-x off）
+    NOTATION_SCI     // 强制科学计数法（-x on）
+} NotationMode;
 
 /* ============================================================
  * 新增: 词法与语法分析器数据˝结构 (Lexer & Parser)
@@ -100,10 +108,11 @@ typedef struct {
 /* ============================================================
  * 2. 全局函数声明
  * ============================================================ */
-void run_interactive_mode(int precision);                                    // 交互模式入口
-void run_cli_mode(int argc, char *argv[], int precision);                      // 命令行模式入口
+void run_interactive_mode(int precision, int sci_prec, NotationMode mode);
+void run_cli_mode(int argc, char *argv[], int precision, int sci_prec, NotationMode mode);
 CalcResult evaluate_expression(const char *expr, int precision);               // 表达式计算核心
 void print_result(const char *expr, CalcResult res);            // 结果输出和错误处理
+void apply_scientific_format(char *s, size_t cap, NotationMode mode, int fixed_prec, int sci_prec);
 ErrorCode parse_basic_expression(const char *expr, char *num1, char *op, char *num2);  // 基础表达式解析（支持大数字符串）
 
 // BigInt 大数运算库 - 函数声明
@@ -427,6 +436,70 @@ static ErrorCode format_fixed_precision(char *s, size_t cap, int precision) {
     return SUCCESS;
 }
 
+// 科学计数法格式化器：根据 NotationMode 将定点数结果转为科学计数法（或保持不变）
+void apply_scientific_format(char *s, size_t cap, NotationMode mode, int fixed_prec, int sci_prec) {
+    if (mode == NOTATION_FIXED) return;
+
+    int is_neg = (s[0] == '-');
+    char *start = s + is_neg;
+    char *dot = strchr(start, '.');
+    
+    char *first_nonzero = NULL;
+    for (char *p = start; *p != '\0'; p++) {
+        if (*p >= '1' && *p <= '9') {
+            first_nonzero = p;
+            break;
+        }
+    }
+    
+    // 如果全是 0，返回 0
+    if (!first_nonzero) {
+        strcpy(s, "0");
+        return;
+    }
+    
+    int E = 0;
+    if (dot) {
+        if (first_nonzero < dot) {
+            E = (int)(dot - first_nonzero) - 1;
+        } else {
+            E = (int)(dot - first_nonzero); 
+        }
+    } else {
+        E = (int)strlen(first_nonzero) - 1;
+    }
+    
+    int upper_threshold = (fixed_prec > 0) ? fixed_prec : 6;
+    if (mode == NOTATION_AUTO && E >= -4 && E < upper_threshold) {
+        if (strcmp(s, "-0") == 0) strcpy(s, "0");
+        return;
+    }
+    
+    char mantissa[MAX_BIGINT_LEN];
+    int m_idx = 0;
+    
+    if (is_neg) mantissa[m_idx++] = '-';
+    mantissa[m_idx++] = *first_nonzero;
+    mantissa[m_idx++] = '.';
+    
+    for (char *p = first_nonzero + 1; *p != '\0'; p++) {
+        if (*p != '.') {
+            if (m_idx < MAX_BIGINT_LEN - 1) mantissa[m_idx++] = *p;
+        }
+    }
+    mantissa[m_idx] = '\0';
+    
+    format_fixed_precision(mantissa, sizeof(mantissa), sci_prec);
+    
+    char exp_str[32];
+    sprintf(exp_str, "e%c%02d", (E >= 0 ? '+' : '-'), (E >= 0 ? E : -E));
+    
+    if (strlen(mantissa) + strlen(exp_str) < cap) {
+        strcpy(s, mantissa);
+        strcat(s, exp_str);
+    }
+}
+
 // 工具 1：提取整数部分并计算小数位数（去掉小数点）
 static bool extract_decimal(const char *input, char *out_str, size_t cap, int *scale) {
     const char *dot = strchr(input, '.');
@@ -435,17 +508,24 @@ static bool extract_decimal(const char *input, char *out_str, size_t cap, int *s
         if (in_len >= cap) return false;
         memcpy(out_str, input, in_len + 1);
         *scale = 0;
-        return true;
+    } else {
+        size_t int_len = (size_t)(dot - input);
+        size_t frac_len = strlen(dot + 1);
+        if (int_len + frac_len >= cap) return false;
+
+        memcpy(out_str, input, int_len);
+        memcpy(out_str + int_len, dot + 1, frac_len);
+        out_str[int_len + frac_len] = '\0';
+        *scale = (int)frac_len;
     }
 
-    size_t int_len = (size_t)(dot - input);
-    size_t frac_len = strlen(dot + 1);
-    if (int_len + frac_len >= cap) return false;
+    int is_neg = (out_str[0] == '-');
+    char *digits = out_str + is_neg;
+    remove_leading_zeros(digits);
+    if (is_neg && strcmp(digits, "0") == 0) {
+        strcpy(out_str, "0");
+    }
 
-    memcpy(out_str, input, int_len);
-    memcpy(out_str + int_len, dot + 1, frac_len);
-    out_str[int_len + frac_len] = '\0';
-    *scale = (int)frac_len;
     return true;
 }
 
@@ -903,56 +983,21 @@ void bigint_div(const char *num1, const char *num2, char *result, int precision,
     k += strlen(p_quo);
 
     // ==========================================
-    // 阶段二：小数扩展计算 + 四舍五入（half-up）
+    // 阶段二：小数扩展计算（四舍五入交由 format_fixed_precision 处理）
     // ==========================================
-    if (precision > 0) {
-        int round_digit = 0;
-        int wrote = 0;
-        char frac[MAX_BIGINT_LEN + 2];
-
-        if (strcmp(current_rem, "0") != 0) {
-            for (int i = 0; i < precision; i++) {
-                if (strcmp(current_rem, "0") == 0) break;
-                int d = div_step(current_rem, sizeof(current_rem), abs2);
-                if (d < 0) { *err = ERR_INPUT_TOO_LONG; return; }
-                frac[wrote++] = (char)('0' + d);
+    if (strcmp(current_rem, "0") != 0) {
+        result[k++] = '.';
+        // 多算一位，留给 format_fixed_precision 做四舍五入裁判
+        int max_digits = precision + 1;
+        for (int i = 0; i < max_digits; i++) {
+            if (k >= MAX_BIGINT_LEN - 2) { 
+                *err = ERR_INPUT_TOO_LONG; 
+                return; 
             }
-
-            // 额外算一位用于四舍五入
-            if (strcmp(current_rem, "0") != 0) {
-                int d = div_step(current_rem, sizeof(current_rem), abs2);
-                if (d < 0) { *err = ERR_INPUT_TOO_LONG; return; }
-                round_digit = d;
-            }
-        }
-
-        if (round_digit >= 5) {
-            int carry = 1;
-            for (int i = wrote - 1; i >= 0 && carry; i--) {
-                if (frac[i] < '9') { frac[i] = (char)(frac[i] + 1); carry = 0; }
-                else { frac[i] = '0'; }
-            }
-            if (carry) {
-                if (!increment_result_integer(result, MAX_BIGINT_LEN)) {
-                    *err = ERR_INPUT_TOO_LONG;
-                    return;
-                }
-            }
-        }
-
-        if (wrote > 0) {
-            result[k++] = '.';
-            for (int i = 0; i < wrote; i++) result[k++] = frac[i];
-        }
-    } else if (precision == 0 && strcmp(current_rem, "0") != 0) {
-        // precision==0 时：看第一位小数决定是否进位
-        int d = div_step(current_rem, sizeof(current_rem), abs2);
-        if (d < 0) { *err = ERR_INPUT_TOO_LONG; return; }
-        if (d >= 5) {
-            if (!increment_result_integer(result, MAX_BIGINT_LEN)) {
-                *err = ERR_INPUT_TOO_LONG;
-                return;
-            }
+            if (strcmp(current_rem, "0") == 0) break;
+            int d = div_step(current_rem, sizeof(current_rem), abs2);
+            if (d < 0) { *err = ERR_INPUT_TOO_LONG; return; }
+            result[k++] = (char)('0' + d);
         }
     }
     
@@ -1015,15 +1060,22 @@ ErrorCode bigint_sqrt(const char *num, char *result, int precision) {
     int max_iter = 300;
     for (int i = 0; i < max_iter; i++) {
         div_err = SUCCESS;
-        // precision 传 0 意味着它是绝对纯粹的【整数除法】
+        // precision 传 0 会多算出一位小数供原本的四舍五入使用 (例如 "3.5")
+        // 但牛顿迭代只需要向下取整的纯整数，因此通过找小数点强行截断
         bigint_div(num_int, x_old, quotient, 0, &div_err);
         if (div_err != SUCCESS) return div_err;
+
+        char *dot_quo = strchr(quotient, '.');
+        if (dot_quo) *dot_quo = '\0';
 
         bigint_add(x_old, quotient, sum);
         
         div_err = SUCCESS;
         bigint_div(sum, "2", x_new, 0, &div_err);
         if (div_err != SUCCESS) return div_err;
+
+        char *dot_new = strchr(x_new, '.');
+        if (dot_new) *dot_new = '\0';
 
         // 如果结果完全收敛
         if (strcmp(x_old, x_new) == 0) {
@@ -1358,39 +1410,38 @@ void print_result(const char *expr, CalcResult res) {
  * - 无参数：交互模式，持续接收用户输入
  */
 int main(int argc, char *argv[]) {
-    int precision = 6; // 默认精度
+    int precision = 6;
+    int sci_prec = 6;
+    NotationMode mode = NOTATION_AUTO;
     int arg_idx = 1;
 
-    // 解析 -p 或 --precision 选项
-    if (argc >= 3 && (strcmp(argv[1], "-p") == 0)) {
-        char *endptr;
-        errno = 0;
-        long p = strtol(argv[2], &endptr, 10);
-        
-        // 检查输入是否完全是数字，以及是否发生溢出
-        if (errno == ERANGE) {
-            fprintf(stderr, "Error: Precision too large. Maximum allowed is %d.\n", MAX_BIGINT_LEN);
-            return 1;
+    while (arg_idx < argc && argv[arg_idx][0] == '-') {
+        if (strcmp(argv[arg_idx], "-p") == 0 && arg_idx + 1 < argc) {
+            if (strcmp(argv[arg_idx+1], "max") == 0 || strcmp(argv[arg_idx+1], "MAX") == 0) {
+                precision = LIMIT_PRECISION;
+            } else {
+                long p = strtol(argv[arg_idx+1], NULL, 10);
+                precision = (p > LIMIT_PRECISION) ? LIMIT_PRECISION : ((p < 0) ? 0 : (int)p);
+            }
+            arg_idx += 2;
+        } else if (strcmp(argv[arg_idx], "-s") == 0 && arg_idx + 1 < argc) {
+            long s_val = strtol(argv[arg_idx+1], NULL, 10);
+            sci_prec = (s_val > LIMIT_PRECISION) ? LIMIT_PRECISION : ((s_val < 0) ? 0 : (int)s_val);
+            arg_idx += 2;
+        } else if (strcmp(argv[arg_idx], "-x") == 0 && arg_idx + 1 < argc) {
+            if (strcmp(argv[arg_idx+1], "off") == 0) mode = NOTATION_FIXED;
+            else if (strcmp(argv[arg_idx+1], "on") == 0) mode = NOTATION_SCI;
+            else mode = NOTATION_AUTO;
+            arg_idx += 2;
+        } else {
+            break;
         }
-        if (*endptr != '\0' || p < 0) {
-            fprintf(stderr, "Error: Invalid precision value. It must be a non-negative integer.\n");
-            return 1;
-        }
-        if (p > MAX_BIGINT_LEN) {
-            fprintf(stderr, "Error: Precision too large. Maximum allowed is %d.\n", MAX_BIGINT_LEN);
-            return 1;
-        }
-        
-        precision = (int)p;
-        arg_idx = 3;
     }
 
     if (arg_idx < argc) {
-        // 有表达式参数，进入命令行模式
-        run_cli_mode(argc - arg_idx, argv + arg_idx, precision);
+        run_cli_mode(argc - arg_idx, argv + arg_idx, precision, sci_prec, mode);
     } else {
-        // 无表达式参数，进入交互模式
-        run_interactive_mode(precision);
+        run_interactive_mode(precision, sci_prec, mode);
     }
     return 0;
 }
@@ -1403,7 +1454,7 @@ int main(int argc, char *argv[]) {
  * @param argv 命令行参数数组
  * @param precision 保留的小数位数
  */
-void run_cli_mode(int argc, char *argv[], int precision) {
+void run_cli_mode(int argc, char *argv[], int precision, int sci_prec, NotationMode mode) {
     char expr[MAX_BIGINT_LEN] = {0};
     
     // 将所有参数拼接成一个完整的表达式字符串
@@ -1415,14 +1466,19 @@ void run_cli_mode(int argc, char *argv[], int precision) {
     }
 
     CalcResult res = evaluate_expression(expr, precision);
-    print_result(expr, res);
+    if (res.err == SUCCESS) {
+        apply_scientific_format(res.result, sizeof(res.result), mode, precision, sci_prec);
+        printf("%s = %s\n", expr, res.result);
+    } else {
+        print_result(expr, res);
+    }
 }
 
 /**
  * 交互模式实现
  * 持续接收用户输入，逐行计算并输出结果，直到用户输入 "quit" 或 EOF
  */
-void run_interactive_mode(int precision) {
+void run_interactive_mode(int precision, int sci_prec, NotationMode mode) {
     char input[MAX_BIGINT_LEN];
 
     while (1) {
@@ -1448,12 +1504,8 @@ void run_interactive_mode(int precision) {
 
         // 3. 进入独立的“系统命令分发器 (Dispatcher)”体系
         if (cmd_ptr[0] == '-') {
-            // 解析修改精度的指令 "-p"（支持 "-p2", "-p  2" 等任意带空格格式）
             if (strncmp(cmd_ptr, "-p", 2) == 0) {
-                // 指针跳过 "-p" 本身，直指后缀部分
                 const char *num_part = cmd_ptr + 2;
-                
-                // 跳过可能跟随在 "-p" 和数字中间的任意个空格
                 while (*num_part != '\0' && isspace(*num_part)) num_part++;
                 
                 if (*num_part == '\0') {
@@ -1462,28 +1514,57 @@ void run_interactive_mode(int precision) {
                     continue;
                 }
 
-                char *endptr;
-                errno = 0;
-                long p = strtol(num_part, &endptr, 10);
-                
-                // 跳过数字后面可能跟随的无意义空格
-                while (*endptr != '\0' && isspace(*endptr)) endptr++;
-                
-                if (errno == ERANGE) {
-                    printf("Error: Precision too large. Maximum allowed is %d.\n", MAX_BIGINT_LEN);
-                } else if (*endptr != '\0' || p < 0) {
-                    printf("Error: Invalid precision value. It must be a non-negative integer.\n");
-                } else if (p > MAX_BIGINT_LEN) {
-                    printf("Error: Precision too large. Maximum allowed is %d.\n", MAX_BIGINT_LEN);
+                if (strcmp(num_part, "max") == 0 || strcmp(num_part, "MAX") == 0) {
+                    precision = LIMIT_PRECISION;
+                    printf("Precision set to MAX (%d, safe limit)\n", precision);
                 } else {
-                    precision = (int)p;
-                    printf("Precision set to %d\n", precision);
+                    char *endptr;
+                    errno = 0;
+                    long p = strtol(num_part, &endptr, 10);
+                    while (*endptr != '\0' && isspace(*endptr)) endptr++;
+                    
+                    if (errno == ERANGE) {
+                        printf("Error: Precision too large.\n");
+                    } else if (*endptr != '\0' || p < 0) {
+                        printf("Error: Invalid precision value.\n");
+                    } else if (p > LIMIT_PRECISION) {
+                        printf("Error: Precision too large.\n");
+                    } else {
+                        precision = (int)p;
+                        printf("Precision set to %d\n", precision);
+                    }
+                }
+            } else if (strncmp(cmd_ptr, "-s", 2) == 0) {
+                const char *num_part = cmd_ptr + 2;
+                while (*num_part != '\0' && isspace(*num_part)) num_part++;
+                if (*num_part == '\0') {
+                    printf("Error: Missing precision value after '-s'.\n");
+                    continue;
+                }
+                char *endptr;
+                long s_val = strtol(num_part, &endptr, 10);
+                if (*endptr == '\0' && s_val >= 0 && s_val <= LIMIT_PRECISION) {
+                    sci_prec = (int)s_val;
+                    printf("Scientific Precision set to %d\n", sci_prec);
+                } else {
+                    printf("Error: Invalid scientific precision value.\n");
+                }
+            } else if (strncmp(cmd_ptr, "-x", 2) == 0) {
+                const char *arg_part = cmd_ptr + 2;
+                while (*arg_part != '\0' && isspace(*arg_part)) arg_part++;
+                if (strcmp(arg_part, "off") == 0) {
+                    mode = NOTATION_FIXED;
+                    printf("Notation mode set to FIXED (-x off)\n");
+                } else if (strcmp(arg_part, "on") == 0) {
+                    mode = NOTATION_SCI;
+                    printf("Notation mode set to SCI (-x on)\n");
+                } else {
+                    mode = NOTATION_AUTO;
+                    printf("Notation mode set to AUTO (-x auto)\n");
                 }
             } else {
-                // 未来扩展：比如输入了 -scale 或者不存在的 -abc
                 printf("Error: Unknown command '%s'\n", cmd_ptr);
             }
-            // 命令体系不参与后续大数数学计算，直接结束本次轮询
             continue;
         }
 
@@ -1492,9 +1573,10 @@ void run_interactive_mode(int precision) {
         
         // 交互模式下通常只输出结果或错误
         if (res.err == SUCCESS) {
-            printf("%s\n", res.result);  // 输出字符串形式的大数结果
+            apply_scientific_format(res.result, sizeof(res.result), mode, precision, sci_prec);
+            printf("%s\n", res.result);
         } else {
-            print_result(cmd_ptr, res); // 复用错误打印逻辑
+            print_result(cmd_ptr, res);
         }
     }
 }
