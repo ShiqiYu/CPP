@@ -3,7 +3,7 @@
 ## Table of Contents
 1. [Operating Manual](#1-operating-manual)
    - [1.1 Two Modes](#11-two-modes-interactive-mode-and-cli-mode)
-   - [1.2 Parameter Setting](#12-parameter-setting)
+   - [1.2 Parameter Setting & Formatting](#12-parameter-setting--formatting)
    - [1.3 Input Format](#13-input-format)
 2. [Basic Functions](#2-basic-functions)
    - [2.1 Large Number Calculation (BigInt)](#21-large-number-calculation-bigint)
@@ -11,8 +11,13 @@
    - [2.3 Manual Precision](#23-manual-precision--p)
    - [2.4 Long Expression Evaluation](#24-long-expression-evaluation)
    - [2.5 Built-in Functions](#25-built-in-functions)
+   - [2.6 Output Formatting Subsystem](#26-output-formatting-subsystem-scientific-notation)
 3. [Code Structure](#3-code-structure)
 4. [Checking Illegal Input](#4-checking-illegal-input)
+   - [4.1 Error Code Definition](#41-error-code-definition)
+   - [4.2 Error Interception Layers](#42-error-interception-layers)
+   - [4.3 Unified Error Output Presentation](#43-unified-error-output-presentation)
+   - [4.4 Memory Safety and Buffer Protection](#44-memory-safety-and-buffer-protection)
 
 
 ## 1. Operating Manual
@@ -24,17 +29,30 @@ The calculator supports two execution modes:
 - **Interactive Mode**: Simply run `./calculator`. You will enter a REPL (Read-Eval-Print Loop) where you can type expressions one by one. Type `quit` to exit.
 - **CLI Mode**: Run `./calculator "1 + 2 * 3"`. The calculator will evaluate the expression provided as an argument and exit immediately.
 
-### 1.2 Parameter Setting
+### 1.2 Parameter Setting & Formatting
 
-Use the `-p` flag to specify the number of decimal places for the output (default is 6).
+Use the following flags to customize the calculation and output behavior:
+
+#### 1.2.1 Calculation Precision (`-p`)
+Use the `-p` flag to specify the number of decimal places for the core calculation and default output (default is 6).
 
 - **Example**: `./calculator -p 10 "sqrt(2)"`
 - **In Interactive Mode**: You can also type `-p 10` during the session to update the precision for all subsequent calculations.
+- **Syntactic Sugar**: You can use `-p max` to safely push the precision to the engine's absolute safe limit (e.g., ~3000 decimal places), avoiding manual buffer limit calculations.
+
+#### 1.2.2 Output Format & Scientific Notation (`-x`, `-s`)
+The calculator dynamically supports formatting large or infinitesimal numbers into scientific notation (e.g. `1.23e+10`).
+- **Notation Mode (`-x`)**: Toggles the display mode.
+  - `-x auto` (Default): Automatically switches between fixed-point and scientific notation based on the number's magnitude (similar to C's `%g`).
+  - `-x off`: Forces fixed-point notation for all numbers, completely unrolling decimals.
+  - `-x on`: Forces scientific notation for all numbers.
+- **Scientific Precision (`-s`)**: Sets the number of decimal places to keep in the mantissa when outputting in scientific notation (default is 6).
+  - **Example**: `./calculator -p max -x on -s 3 "7 / 0.3"` → `2.333e+01`
 
 ### 1.3 Input Format
 
 The calculator supports:
-- **Numbers**: Including very large integers and decimals (e.g., `1234567890.12345`).
+- **Numbers**: Including very large integers, decimals and Scientific notation (e.g., `1234567890.12345`, `1.23e4`, `1.23E4`).
 - **Operators**: `+`, `-`, `*`, `/`.
 - **Grouping**: Parentheses `(...)` to override operator precedence.
 - **Functions**: `sqrt(x)` for square root and `abs(x)` for absolute value.
@@ -137,6 +155,10 @@ if (round_digit >= 5) carry_into(frac);   // round up if needed
 
 Edge cases handled: rounding `9.999` at 2 places correctly produces `10.00` by propagating carry into the integer part.
 
+#### 2.3.3 Intermediate Precision Truncation (Accumulation Error)
+Because the Shunting-Yard evaluator evaluates complex mathematical equations natively by pushing intermediate strings back onto the Value Stack, every intermediate arithmetic operation undergoes formatting and strict truncation to the specified `-p` calculation precision immediately. 
+As a result, calculations like `1 / (1 / 3)` at `-p 6` will evaluate the inner parenthesis to `0.333333` first, and then `1 / 0.333333` yields `3.000003`. This faithfully mimics the behavior of physical handheld calculators, ensuring that visible intermediate states perfectly and predictably match the final mathematical pipeline without silently carrying hidden fractions.
+
 ### 2.4 Long Expression Evaluation
 
 #### 2.4.1 Shunting-Yard Algorithm
@@ -222,6 +244,23 @@ if (arg[0] == '-') memmove(arg, arg + 1, strlen(arg));
 
 No dedicated math function is needed — absolute value on a BigInt string is simply removing the leading `-` character.
 
+### 2.6 Output Formatting Subsystem (Scientific Notation)
+
+To support scientific notation without polluting the core mathematical algorithms (which function purely on absolute strings), the formatter is implemented as a totally independent post-processing layer: `apply_scientific_format()`.
+
+**Zero-Pollution Architecture:**
+1. All math is strictly calculated in fixed-point format first, up to `precision` (or clamped by `-p max`).
+2. Right before printing, `apply_scientific_format` scans the raw string result to calculate its true exponent $E$.
+3. Based on the selected `NotationMode` (`AUTO`, `FIXED`, or `SCI`), it decides whether a transformation is needed.
+   - If `AUTO` and $E$ is within the comfortable reading range (e.g. $E \in [-4, 6)$ by default), it skips scientific conversion, perfectly mimicking C's intelligent `%g` specifier.
+   - Otherwise, it seamlessly extracts the first non-zero digit, places a decimal point, strips the rest into a mantissa string, rounds the mantissa using `-s` (scientific precision) via `format_fixed_precision`, and appends `e+XX` or `e-XX`.
+
+> [!NOTE]
+> **Dependency on Calculation Precision (`-p`)**
+> Because the formatting layer only triggers *after* the core math engine yields a fixed-point string, the fixed-point string must contain the non-zero digits for the formatter to find them. If you compute `1 / 1000000000000` with the default `-p 6`, the math engine outputs `0`, and the formatter will simply echo `0`. **Therefore, if you want to capture infinitesimal mathematical results like `1.0e-12`, you must set `-p` (Calculation Precision) high enough (e.g., `-p 15`) to capture the non-zero digits before the scientific formatter can convert them.**
+
+This decoupling allows `-x` and `-s` to manipulate visual presentation identically across both interactive and CLI modes without altering the underlying strict BigInt truth.
+
 
 ## 3. Code Structure
 
@@ -275,3 +314,8 @@ Regardless of which layer threw the error, the `evaluate_expression()` function 
 It is eventually caught by the `print_result()` function, which acts as a centralized error dispatcher. For instance, receiving `ERR_INVALID_INPUT` prompts the user with:
 `The input cannot be interpret as numbers!`
 This ensures that the user is always presented with human-readable feedback and the program cycle continues smoothly without abrupt termination.
+
+### 4.4 Memory Safety and Buffer Protection
+When dealing with arbitrary-precision arithmetic, uncontrolled fractions (like `1/3`) can easily result in buffer overflows (`Segmentation Fault`) if a user requests unreasonable precision. The system fundamentally protects memory at two levels:
+1. **Dynamic Generation Checks**: Inside the core expansion loops (e.g., the decimal expansion loop of `bigint_div`), the remaining capacity `MAX_BIGINT_LEN` is strictly monitored. If the result strings approach the array capacity boundary, the loop safely cuts off and throws `ERR_INPUT_TOO_LONG`.
+2. **Safe Precision Ceilings**: The `-p max` shortcut automatically binds the precision to `LIMIT_PRECISION (MAX_BIGINT_LEN - 1024)`, guaranteeing that the system leverages the maximum possible processing space while leaving exactly enough trailing buffer to safely perform carrying, formatting, and mathematical maneuvering without crashing.
