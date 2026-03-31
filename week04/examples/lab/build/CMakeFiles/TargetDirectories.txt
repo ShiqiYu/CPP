@@ -1,0 +1,3 @@
+/Users/manfred/Documents/CPP/week04/examples/lab/build/CMakeFiles/main.dir
+/Users/manfred/Documents/CPP/week04/examples/lab/build/CMakeFiles/edit_cache.dir
+/Users/manfred/Documents/CPP/week04/examples/lab/build/CMakeFiles/rebuild_cache.dir
