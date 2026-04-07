@@ -10,7 +10,7 @@ struct Matrix
 
 float matrix_max(struct Matrix mat)
 {
-    float max = FLT_MIN;
+    float max = -FLT_MAX;
     //find max value of mat
     for(size_t r = 0; r < mat.rows; r++)
         for (size_t c = 0; c < mat.cols; c++)
