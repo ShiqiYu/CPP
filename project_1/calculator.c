@@ -29,6 +29,19 @@ typedef enum {
 } NotationMode;
 
 /* ============================================================
+ * 动态堆内存安全包装器
+ * ============================================================ */
+static void* safe_malloc(size_t size) {
+    if (size == 0) return NULL;
+    void *ptr = calloc(1, size);
+    if (ptr == NULL) {
+        fprintf(stderr, "Fatal Error: Out of memory (failed to allocate %zu bytes).\n", size);
+        exit(1);
+    }
+    return ptr;
+}
+
+/* ============================================================
  * 新增: 词法与语法分析器数据结构 (Lexer & Parser)
  * ============================================================ */
 typedef enum {
@@ -52,7 +65,7 @@ typedef struct {
 #define MAX_STACK_SIZE 100
 
 typedef struct {
-    char items[MAX_STACK_SIZE][MAX_BIGINT_LEN];
+    char *items[MAX_STACK_SIZE]; // 仅存放动态分配的指针
     int top;
 } ValueStack;
 
@@ -64,17 +77,27 @@ typedef struct {
 static void init_v_stack(ValueStack *s) { s->top = -1; }
 static void init_o_stack(OpStack *s) { s->top = -1; }
 
+static void clear_v_stack(ValueStack *s) {
+    while (s->top >= 0) {
+        free(s->items[s->top]);
+        s->items[s->top] = NULL;
+        s->top--;
+    }
+}
+
 static ErrorCode push_v(ValueStack *s, const char *val) {
     if (s->top >= MAX_STACK_SIZE - 1) return ERR_INPUT_TOO_LONG; // 严格检查栈溢出
     s->top++;
-    strncpy(s->items[s->top], val, MAX_BIGINT_LEN - 1);
-    s->items[s->top][MAX_BIGINT_LEN - 1] = '\0';
+    char *new_str = (char*)safe_malloc(strlen(val) + 1);
+    strcpy(new_str, val);
+    s->items[s->top] = new_str;
     return SUCCESS;
 }
 
-static ErrorCode pop_v(ValueStack *s, char *out) {
+// 注意：弹出的指针责任移交给调用者，必须由调用者手动 free
+static ErrorCode pop_v(ValueStack *s, char **out) {
     if (s->top < 0) return ERR_INVALID_INPUT;
-    strcpy(out, s->items[s->top]);
+    *out = s->items[s->top];
     s->top--;
     return SUCCESS;
 }
@@ -324,6 +347,39 @@ static ErrorCode parse_number_token(const char **p, int is_negative, char *out, 
 
 // 固定精度输出：四舍五入（half-up）到 precision 位，并补足尾随 0
 // 约定：precision >= 0；输入 s 是十进制字符串（可带 '-'、可带 '.'）
+static ErrorCode pad_fraction_zeros(char *s, size_t cap, int target_frac_len, int current_frac_len) {
+    if (current_frac_len >= target_frac_len) return SUCCESS;
+    size_t len = strlen(s);
+    int need = target_frac_len - current_frac_len;
+    if (len + (size_t)need >= cap) return ERR_INPUT_TOO_LONG;
+    for (int i = 0; i < need; i++) s[len + i] = '0';
+    s[len + need] = '\0';
+    return SUCCESS;
+}
+
+static ErrorCode perform_rounding_carry(char *s, char *frac, int precision, size_t cap, char *dot) {
+    int carry = 1;
+    // 从小数最后一位向前进位
+    for (int i = precision - 1; i >= 0 && carry; i--) {
+        if (frac[i] < '9') { frac[i] = (char)(frac[i] + 1); carry = 0; }
+        else { frac[i] = '0'; }
+    }
+    if (carry) {
+        // 小数全 9，进位到整数
+        *dot = '\0'; // 暂时去掉小数点
+        if (!increment_result_integer(s, cap)) return ERR_INPUT_TOO_LONG;
+        // 重新加回小数点与 precision 个 0
+        size_t len = strlen(s);
+        if (len + 1 + (size_t)precision >= cap) return ERR_INPUT_TOO_LONG;
+        s[len] = '.';
+        for (int i = 0; i < precision; i++) s[len + 1 + i] = '0';
+        s[len + 1 + precision] = '\0';
+    }
+    return SUCCESS;
+}
+
+// 固定精度输出：四舍五入（half-up）到 precision 位，并补足尾随 0
+// 约定：precision >= 0；输入 s 是十进制字符串（可带 '-'、可带 '.'）
 static ErrorCode format_fixed_precision(char *s, size_t cap, int precision) {
     if (precision < 0) return ERR_INVALID_INPUT;
 
@@ -383,11 +439,8 @@ static ErrorCode format_fixed_precision(char *s, size_t cap, int precision) {
 
     // 小数位不足：补 0 到 precision+1（为了统一后面取 round_digit 的逻辑）
     if (frac_len < precision + 1) {
-        size_t len = strlen(s);
-        int need = (precision + 1) - frac_len;
-        if (len + (size_t)need >= cap) return ERR_INPUT_TOO_LONG;
-        for (int i = 0; i < need; i++) s[len + i] = '0';
-        s[len + need] = '\0';
+        ErrorCode err = pad_fraction_zeros(s, cap, precision + 1, frac_len);
+        if (err != SUCCESS) return err;
         dot = strchr(p, '.');
         frac_len = (int)strlen(dot + 1);
     }
@@ -401,39 +454,15 @@ static ErrorCode format_fixed_precision(char *s, size_t cap, int precision) {
     frac[precision] = '\0';
 
     if (round_digit >= 5) {
-        int carry = 1;
-        // 从小数最后一位向前进位
-        for (int i = precision - 1; i >= 0 && carry; i--) {
-            if (frac[i] < '9') { frac[i] = (char)(frac[i] + 1); carry = 0; }
-            else { frac[i] = '0'; }
-        }
-        if (carry) {
-            // 小数全 9，进位到整数
-            *dot = '\0'; // 暂时去掉小数点
-            if (!increment_result_integer(s, cap)) return ERR_INPUT_TOO_LONG;
-            // 重新加回小数点与 precision 个 0
-            size_t len = strlen(s);
-            if (len + 1 + (size_t)precision >= cap) return ERR_INPUT_TOO_LONG;
-            s[len] = '.';
-            for (int i = 0; i < precision; i++) s[len + 1 + i] = '0';
-            s[len + 1 + precision] = '\0';
-            return SUCCESS;
-        }
+        ErrorCode err = perform_rounding_carry(s, frac, precision, cap, dot);
+        if (err != SUCCESS) return err;
     }
 
     // 补足到 precision 位（因为前面可能截断/或本来就不足）
     dot = strchr(p, '.');
     frac = dot + 1;
     int now = (int)strlen(frac);
-    if (now < precision) {
-        size_t len = strlen(s);
-        int need = precision - now;
-        if (len + (size_t)need >= cap) return ERR_INPUT_TOO_LONG;
-        for (int i = 0; i < need; i++) s[len + i] = '0';
-        s[len + need] = '\0';
-    }
-
-    return SUCCESS;
+    return pad_fraction_zeros(s, cap, precision, now);
 }
 
 // 科学计数法格式化器：根据 NotationMode 将定点数结果转为科学计数法（或保持不变）
@@ -735,24 +764,17 @@ static void bigint_abs_sub(const char *num1, const char *num2, char *result) {
 
 
 void bigint_sub(const char *num1, const char *num2, char *result) {
-    // 我们需要一个临时数组来存储反转符号后的 num2
-    char inverted_num2[MAX_BIGINT_LEN];
-
-    // 特殊情况：如果 num2 是 "0"，不需要加负号（避免出现 "-0"）
+    char *inverted_num2 = (char *)safe_malloc(strlen(num2) + 2);
     if (strcmp(num2, "0") == 0) {
         strcpy(inverted_num2, "0");
-    } 
-    // 如果 num2 是负数，去掉负号变成正数
-    else if (num2[0] == '-') {
-        strcpy(inverted_num2, num2 + 1); // 指针加1，跳过 '-'
-    } 
-    // 如果 num2 是正数，在前面补上负号
-    else {
+    } else if (num2[0] == '-') {
+        strcpy(inverted_num2, num2 + 1);
+    } else {
         inverted_num2[0] = '-';
         strcpy(inverted_num2 + 1, num2);
     }
-    // 核心：调用带符号加法器
     bigint_add(num1, inverted_num2, result);
+    free(inverted_num2);
 }
 
 void bigint_mul(const char *num1, const char *num2, char *result) {
@@ -1193,59 +1215,121 @@ static Token get_next_token(const char **p, bool expects_unary) {
 
 // 核心套用单个算子
 static ErrorCode apply_operator(ValueStack *vals, char op, int precision) {
-    char num2[MAX_BIGINT_LEN], num1[MAX_BIGINT_LEN];
+    char *num2 = NULL, *num1 = NULL;
     ErrorCode err;
-    if ((err = pop_v(vals, num2)) != SUCCESS) return ERR_INVALID_INPUT;
-    if ((err = pop_v(vals, num1)) != SUCCESS) return ERR_INVALID_INPUT;
+    if ((err = pop_v(vals, &num2)) != SUCCESS) return err;
+    if ((err = pop_v(vals, &num1)) != SUCCESS) {
+        free(num2); // clean up num2 if pop_v for num1 fails
+        return err;
+    }
 
-    char int1[MAX_BIGINT_LEN * 2], int2[MAX_BIGINT_LEN * 2];
+    size_t needed = strlen(num1) + strlen(num2) + precision + 128; 
+    char *int1 = (char*)safe_malloc(needed);
+    char *int2 = (char*)safe_malloc(needed);
+    char *result = (char*)safe_malloc(needed);
+    strcpy(result, "0");
+
     int scale1, scale2;
-    char result[MAX_BIGINT_LEN] = "0";
 
-    if (!extract_decimal(num1, int1, sizeof(int1), &scale1) ||
-        !extract_decimal(num2, int2, sizeof(int2), &scale2)) {
-        return ERR_INPUT_TOO_LONG;
+    if (!extract_decimal(num1, int1, needed, &scale1) ||
+        !extract_decimal(num2, int2, needed, &scale2)) {
+        err = ERR_INPUT_TOO_LONG;
+        goto cleanup_apply;
     }
 
     if (op == '+' || op == '-') {
         if (is_all_zeros_number(num1) && is_all_zeros_number(num2)) {
-            return push_v(vals, "0");
+            strcpy(result, "0");
+        } else {
+            int max_scale = (scale1 > scale2) ? scale1 : scale2;
+            if (!append_zeros(int1, needed, max_scale - scale1) ||
+                !append_zeros(int2, needed, max_scale - scale2)) {
+                err = ERR_INPUT_TOO_LONG;
+                goto cleanup_apply;
+            }
+            if (op == '+') bigint_add(int1, int2, result);
+            else bigint_sub(int1, int2, result);
+            insert_decimal(result, max_scale);
         }
-        int max_scale = (scale1 > scale2) ? scale1 : scale2;
-        if (!append_zeros(int1, sizeof(int1), max_scale - scale1) ||
-            !append_zeros(int2, sizeof(int2), max_scale - scale2)) {
-            return ERR_INPUT_TOO_LONG;
-        }
-        if (op == '+') bigint_add(int1, int2, result);
-        else bigint_sub(int1, int2, result);
-        insert_decimal(result, max_scale);
-
     } else if (op == '*') {
         if (is_all_zeros_number(num1) || is_all_zeros_number(num2)) {
-            return push_v(vals, "0");
+            strcpy(result, "0");
+        } else {
+            bigint_mul(int1, int2, result);
+            insert_decimal(result, scale1 + scale2);
         }
-        bigint_mul(int1, int2, result);
-        insert_decimal(result, scale1 + scale2);
-
     } else if (op == '/') {
-        if (is_all_zeros_number(num2)) return ERR_DIV_BY_ZERO;
-        if (is_all_zeros_number(num1)) return push_v(vals, "0");
-        int max_scale = (scale1 > scale2) ? scale1 : scale2;
-        if (!append_zeros(int1, sizeof(int1), max_scale - scale1) ||
-            !append_zeros(int2, sizeof(int2), max_scale - scale2)) {
-            return ERR_INPUT_TOO_LONG;
+        if (is_all_zeros_number(num2)) { err = ERR_DIV_BY_ZERO; goto cleanup_apply; }
+        if (is_all_zeros_number(num1)) { strcpy(result, "0"); }
+        else {
+            int max_scale = (scale1 > scale2) ? scale1 : scale2;
+            if (!append_zeros(int1, needed, max_scale - scale1) ||
+                !append_zeros(int2, needed, max_scale - scale2)) {
+                err = ERR_INPUT_TOO_LONG;
+                goto cleanup_apply;
+            }
+            ErrorCode div_err;
+            bigint_div(int1, int2, result, precision, &div_err);
+            if (div_err != SUCCESS) { err = div_err; goto cleanup_apply; }
         }
-        ErrorCode div_err;
-        bigint_div(int1, int2, result, precision, &div_err);
-        if (div_err != SUCCESS) return div_err;
-
     } else {
-        return ERR_UNSUPPORTED_OP;
+        err = ERR_UNSUPPORTED_OP;
+        goto cleanup_apply;
     }
 
-    ErrorCode format_err = format_fixed_precision(result, sizeof(result), precision);
-    if (format_err != SUCCESS) return format_err;
-    return push_v(vals, result);
+    err = format_fixed_precision(result, needed, precision);
+    if (err != SUCCESS) goto cleanup_apply;
+    err = push_v(vals, result);
+
+cleanup_apply:
+    free(num1);
+    free(num2);
+    free(int1);
+    free(int2);
+    free(result);
+    return err;
+}
+
+static ErrorCode handle_rparen_evaluation(ValueStack *v_stack, OpStack *o_stack, int precision) {
+    ErrorCode err;
+    while (peek_o(o_stack) != '(') {
+        if (peek_o(o_stack) == '\0') {
+            return ERR_INVALID_INPUT; // 括号不匹配
+        }
+        char op; pop_o(o_stack, &op);
+        if ((err = apply_operator(v_stack, op, precision)) != SUCCESS) return err;
+    }
+    char scrap; pop_o(o_stack, &scrap); // 弹出 '('
+    
+    // 检查括号外面是否挂着函数标记
+    if (peek_o(o_stack) == 'S') {
+        char func_mark; pop_o(o_stack, &func_mark);
+        char *arg = NULL;
+        if ((err = pop_v(v_stack, &arg)) != SUCCESS) return err;
+        
+        size_t needed = strlen(arg) + precision + 128;
+        char *sqrt_result = (char*)safe_malloc(needed);
+        err = bigint_sqrt(arg, sqrt_result, precision);
+        
+        if (err == SUCCESS) {
+            err = push_v(v_stack, sqrt_result);
+        }
+        free(arg);
+        free(sqrt_result);
+        return err;
+    } else if (peek_o(o_stack) == 'A') {
+        char func_mark; pop_o(o_stack, &func_mark);
+        char *arg = NULL;
+        if ((err = pop_v(v_stack, &arg)) != SUCCESS) return err;
+
+        if (arg[0] == '-') { 
+            memmove(arg, arg + 1, strlen(arg)); 
+        }
+        err = push_v(v_stack, arg);
+        free(arg); 
+        return err;
+    }
+    return SUCCESS;
 }
 
 // 调度场算法主控
@@ -1271,102 +1355,84 @@ CalcResult evaluate_expression(const char *expr, int precision) {
         Token t = get_next_token(&p, expects_unary);
         if (t.type == TOKEN_ERROR) {
             res.err = ERR_INVALID_INPUT;
-            return res;
+            goto cleanup;
         }
         if (t.type == TOKEN_EOF) {
             break;
         }
 
         if (t.type == TOKEN_FUNC) {
-            // 查函数字典
             char func_marker = 0;
             if (strcmp(t.value, "sqrt") == 0) {
                 func_marker = 'S';
             } else if (strcmp(t.value, "abs") == 0) {
                 func_marker = 'A';
             } else {
-                res.err = ERR_INVALID_INPUT; // 不认识的函数名
-                return res;
+                res.err = ERR_INVALID_INPUT; 
+                goto cleanup;
             }
-            // 压入函数标记到符号栈
-            if ((res.err = push_o(&o_stack, func_marker)) != SUCCESS) return res;
-            expects_unary = true; // 函数名后面一定紧跟 '('
+            if ((res.err = push_o(&o_stack, func_marker)) != SUCCESS) goto cleanup;
+            expects_unary = true; 
         }
         else if (t.type == TOKEN_NUMBER) {
-            if ((res.err = push_v(&v_stack, t.value)) != SUCCESS) return res;
+            if ((res.err = push_v(&v_stack, t.value)) != SUCCESS) goto cleanup;
             expects_unary = false; 
         } 
         else if (t.type == TOKEN_LPAREN) {
-            if ((res.err = push_o(&o_stack, '(')) != SUCCESS) return res;
+            if ((res.err = push_o(&o_stack, '(')) != SUCCESS) goto cleanup;
             expects_unary = true;
         } 
         else if (t.type == TOKEN_RPAREN) {
-            while (peek_o(&o_stack) != '(') {
-                if (peek_o(&o_stack) == '\0') {
-                    res.err = ERR_INVALID_INPUT; // 括号不匹配
-                    return res;
-                }
-                char op; pop_o(&o_stack, &op);
-                if ((res.err = apply_operator(&v_stack, op, precision)) != SUCCESS) return res;
-            }
-            char scrap; pop_o(&o_stack, &scrap); // 弹出 '('
-            // 检查括号外面是否挂着函数标记
-            if (peek_o(&o_stack) == 'S') {
-                char func_mark; pop_o(&o_stack, &func_mark);
-                // sqrt: 弹出数字栈顶，计算平方根，压回
-                char arg[MAX_BIGINT_LEN], sqrt_result[MAX_BIGINT_LEN];
-                if ((res.err = pop_v(&v_stack, arg)) != SUCCESS) return res;
-                res.err = bigint_sqrt(arg, sqrt_result, precision);
-                if (res.err != SUCCESS) return res;
-                if ((res.err = push_v(&v_stack, sqrt_result)) != SUCCESS) return res;
-            } else if (peek_o(&o_stack) == 'A') {
-                char func_mark; pop_o(&o_stack, &func_mark);
-                // abs: 弹出数字栈顶，去掉负号，压回
-                char arg[MAX_BIGINT_LEN];
-                if ((res.err = pop_v(&v_stack, arg)) != SUCCESS) return res;
-                if (arg[0] == '-') memmove(arg, arg + 1, strlen(arg)); // 去掉前缀负号
-                if ((res.err = push_v(&v_stack, arg)) != SUCCESS) return res;
-            }
-            expects_unary = false; // 右括号后面不应该立刻跟一元符号（除非遇到下一个运算符）
+            res.err = handle_rparen_evaluation(&v_stack, &o_stack, precision);
+            if (res.err != SUCCESS) goto cleanup;
+            expects_unary = false; 
         } 
-        else { // 四则运算符
-            // 巧妙处理独立一元减号（例如 "-(2+3)" 被剥离为 "-1 * (2+3)"）
-            // 这样能完美在双栈调度场中保留乘法的优先级
+        else { 
             if (expects_unary && t.value[0] == '-') {
-                if ((res.err = push_v(&v_stack, "-1")) != SUCCESS) return res;
-                t.value[0] = '*'; // 把这一个减号 Token 继续扮演成乘号参与循环
+                if ((res.err = push_v(&v_stack, "-1")) != SUCCESS) goto cleanup;
+                t.value[0] = '*'; 
             } else if (expects_unary && t.value[0] == '+') {
-                res.err = ERR_INVALID_INPUT; // 不接受显式正号
-                return res;
+                res.err = ERR_INVALID_INPUT; 
+                goto cleanup;
             }
 
             while (peek_o(&o_stack) != '\0' && peek_o(&o_stack) != '(' &&
                    precedence(peek_o(&o_stack)) >= precedence(t.value[0])) {
                 char op; pop_o(&o_stack, &op);
-                if ((res.err = apply_operator(&v_stack, op, precision)) != SUCCESS) return res;
+                if ((res.err = apply_operator(&v_stack, op, precision)) != SUCCESS) goto cleanup;
             }
-            if ((res.err = push_o(&o_stack, t.value[0])) != SUCCESS) return res;
-            expects_unary = true; // 符号之后必须有数字或一元符号
+            if ((res.err = push_o(&o_stack, t.value[0])) != SUCCESS) goto cleanup;
+            expects_unary = true; 
         }
     }
 
-    // 清空堆栈里剩下的符号
     while (peek_o(&o_stack) != '\0') {
         char op; pop_o(&o_stack, &op);
         if (op == '(') {
-            res.err = ERR_INVALID_INPUT; // 不匹配的括号（左括号多余）
-            return res;
+            res.err = ERR_INVALID_INPUT; 
+            goto cleanup;
         }
-        if ((res.err = apply_operator(&v_stack, op, precision)) != SUCCESS) return res;
+        if ((res.err = apply_operator(&v_stack, op, precision)) != SUCCESS) goto cleanup;
     }
 
-    // 安全检查，值栈内只能剩下一个最终结果
     if (v_stack.top != 0) { 
-        res.err = ERR_INVALID_INPUT; // 数字太多没算完（比如输入 "5 5"）
-        return res;
+        res.err = ERR_INVALID_INPUT; 
+        goto cleanup;
     }
 
-    pop_v(&v_stack, res.result);
+    char *final_res = NULL;
+    pop_v(&v_stack, &final_res);
+    if (final_res) {
+        if (strlen(final_res) >= MAX_BIGINT_LEN) {
+            res.err = ERR_INPUT_TOO_LONG;
+        } else {
+            strcpy(res.result, final_res);
+        }
+        free(final_res);
+    }
+
+cleanup:
+    clear_v_stack(&v_stack);
     return res;
 }
 
@@ -1474,6 +1540,72 @@ void run_cli_mode(int argc, char *argv[], int precision, int sci_prec, NotationM
     }
 }
 
+static bool process_system_command(const char *cmd_ptr, int *precision, int *sci_prec, NotationMode *mode) {
+    if (cmd_ptr[0] != '-') return false;
+
+    if (strncmp(cmd_ptr, "-p", 2) == 0) {
+        const char *num_part = cmd_ptr + 2;
+        while (*num_part != '\0' && isspace(*num_part)) num_part++;
+        
+        if (*num_part == '\0') {
+            printf("Error: Missing precision value after '-p'.\n");
+            return true;
+        }
+
+        if (strcmp(num_part, "max") == 0 || strcmp(num_part, "MAX") == 0) {
+            *precision = LIMIT_PRECISION;
+            printf("Precision set to MAX (%d, safe limit)\n", *precision);
+        } else {
+            char *endptr;
+            errno = 0;
+            long p = strtol(num_part, &endptr, 10);
+            while (*endptr != '\0' && isspace(*endptr)) endptr++;
+            
+            if (errno == ERANGE) {
+                printf("Error: Precision too large.\n");
+            } else if (*endptr != '\0' || p < 0) {
+                printf("Error: Invalid precision value.\n");
+            } else if (p > LIMIT_PRECISION) {
+                printf("Error: Precision too large.\n");
+            } else {
+                *precision = (int)p;
+                printf("Precision set to %d\n", *precision);
+            }
+        }
+    } else if (strncmp(cmd_ptr, "-s", 2) == 0) {
+        const char *num_part = cmd_ptr + 2;
+        while (*num_part != '\0' && isspace(*num_part)) num_part++;
+        if (*num_part == '\0') {
+            printf("Error: Missing precision value after '-s'.\n");
+            return true;
+        }
+        char *endptr;
+        long s_val = strtol(num_part, &endptr, 10);
+        if (*endptr == '\0' && s_val >= 0 && s_val <= LIMIT_PRECISION) {
+            *sci_prec = (int)s_val;
+            printf("Scientific Precision set to %d\n", *sci_prec);
+        } else {
+            printf("Error: Invalid scientific precision value.\n");
+        }
+    } else if (strncmp(cmd_ptr, "-x", 2) == 0) {
+        const char *arg_part = cmd_ptr + 2;
+        while (*arg_part != '\0' && isspace(*arg_part)) arg_part++;
+        if (strcmp(arg_part, "off") == 0) {
+            *mode = NOTATION_FIXED;
+            printf("Notation mode set to FIXED (-x off)\n");
+        } else if (strcmp(arg_part, "on") == 0) {
+            *mode = NOTATION_SCI;
+            printf("Notation mode set to SCI (-x on)\n");
+        } else {
+            *mode = NOTATION_AUTO;
+            printf("Notation mode set to AUTO (-x auto)\n");
+        }
+    } else {
+        printf("Error: Unknown command '%s'\n", cmd_ptr);
+    }
+    return true;
+}
+
 /**
  * 交互模式实现
  * 持续接收用户输入，逐行计算并输出结果，直到用户输入 "quit" 或 EOF
@@ -1503,68 +1635,7 @@ void run_interactive_mode(int precision, int sci_prec, NotationMode mode) {
         }
 
         // 3. 进入独立的“系统命令分发器 (Dispatcher)”体系
-        if (cmd_ptr[0] == '-') {
-            if (strncmp(cmd_ptr, "-p", 2) == 0) {
-                const char *num_part = cmd_ptr + 2;
-                while (*num_part != '\0' && isspace(*num_part)) num_part++;
-                
-                if (*num_part == '\0') {
-                    // 如果后面什么都没跟
-                    printf("Error: Missing precision value after '-p'.\n");
-                    continue;
-                }
-
-                if (strcmp(num_part, "max") == 0 || strcmp(num_part, "MAX") == 0) {
-                    precision = LIMIT_PRECISION;
-                    printf("Precision set to MAX (%d, safe limit)\n", precision);
-                } else {
-                    char *endptr;
-                    errno = 0;
-                    long p = strtol(num_part, &endptr, 10);
-                    while (*endptr != '\0' && isspace(*endptr)) endptr++;
-                    
-                    if (errno == ERANGE) {
-                        printf("Error: Precision too large.\n");
-                    } else if (*endptr != '\0' || p < 0) {
-                        printf("Error: Invalid precision value.\n");
-                    } else if (p > LIMIT_PRECISION) {
-                        printf("Error: Precision too large.\n");
-                    } else {
-                        precision = (int)p;
-                        printf("Precision set to %d\n", precision);
-                    }
-                }
-            } else if (strncmp(cmd_ptr, "-s", 2) == 0) {
-                const char *num_part = cmd_ptr + 2;
-                while (*num_part != '\0' && isspace(*num_part)) num_part++;
-                if (*num_part == '\0') {
-                    printf("Error: Missing precision value after '-s'.\n");
-                    continue;
-                }
-                char *endptr;
-                long s_val = strtol(num_part, &endptr, 10);
-                if (*endptr == '\0' && s_val >= 0 && s_val <= LIMIT_PRECISION) {
-                    sci_prec = (int)s_val;
-                    printf("Scientific Precision set to %d\n", sci_prec);
-                } else {
-                    printf("Error: Invalid scientific precision value.\n");
-                }
-            } else if (strncmp(cmd_ptr, "-x", 2) == 0) {
-                const char *arg_part = cmd_ptr + 2;
-                while (*arg_part != '\0' && isspace(*arg_part)) arg_part++;
-                if (strcmp(arg_part, "off") == 0) {
-                    mode = NOTATION_FIXED;
-                    printf("Notation mode set to FIXED (-x off)\n");
-                } else if (strcmp(arg_part, "on") == 0) {
-                    mode = NOTATION_SCI;
-                    printf("Notation mode set to SCI (-x on)\n");
-                } else {
-                    mode = NOTATION_AUTO;
-                    printf("Notation mode set to AUTO (-x auto)\n");
-                }
-            } else {
-                printf("Error: Unknown command '%s'\n", cmd_ptr);
-            }
+        if (process_system_command(cmd_ptr, &precision, &sci_prec, &mode)) {
             continue;
         }
 

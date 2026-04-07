@@ -23,9 +23,9 @@ int main()
 
     // some operations on the matrices
 
-    float maxa = FLT_MIN;
-    float maxb = FLT_MIN;
-    float maxc = FLT_MIN;
+    float maxa = -FLT_MIN;
+    float maxb = -FLT_MIN;
+    float maxc = -FLT_MIN;
 
     //find max value of matA
     for(size_t r = 0; r < matA.rows; r++)
