@@ -4,3 +4,5 @@
 settings.json
 .DS_Store
 .vscode
+.localjdk
+.localjre
